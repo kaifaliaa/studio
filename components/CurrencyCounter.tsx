@@ -14,13 +14,13 @@ const CurrencyCounter: React.FC<CurrencyCounterProps> = ({ value, onChange }) =>
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {DENOMINATIONS.map((denom) => {
         const count = value[denom] || 0;
         const total = count * denom;
         return (
-          <div key={denom} className="flex items-center justify-between gap-4">
-            <label htmlFor={`denom-${denom}`} className="w-20 text-md font-medium text-gray-700 dark:text-gray-300">
+          <div key={denom} className="grid grid-cols-3 items-center gap-4">
+            <label htmlFor={`denom-${denom}`} className="text-md font-medium text-gray-700 dark:text-gray-300">
               ₹{denom === 1 ? '1 Coin' : denom}
             </label>
             <input
@@ -28,7 +28,7 @@ const CurrencyCounter: React.FC<CurrencyCounterProps> = ({ value, onChange }) =>
               type="number"
               value={value[denom] || ''}
               onChange={(e) => handleCountChange(denom, parseInt(e.target.value, 10) || 0)}
-              className="w-full max-w-xs px-3 py-1.5 text-center bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-1.5 text-center bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               placeholder="0"
             />
             <span className="w-24 text-right text-md text-gray-600 dark:text-gray-400">

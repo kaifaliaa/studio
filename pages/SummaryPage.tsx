@@ -14,7 +14,7 @@ interface FilteredSummary {
   netBalance: number;
   transactionCount: number;
 }
-// Fix: Define explicit types for the reduce accumulator to fix type inference issues.
+
 interface SummaryAccumulatorValue {
   displayName: string;
   companyName: string;
@@ -40,7 +40,6 @@ const SummaryPage: React.FC = () => {
 
   const handleDeleteCompany = async () => {
     if (companyToDelete.trim() === '') return;
-    // You might want to add a confirmation dialog here
     await deleteCompany(companyToDelete.trim());
     setCompanyToDelete('');
   };
@@ -93,93 +92,93 @@ const SummaryPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-                <UsersIcon className="h-8 w-8 text-gray-600 dark:text-gray-400" />
-                <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Your Company Balances</h2>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newCompanyName}
-                onChange={(e) => setNewCompanyName(e.target.value)}
-                placeholder="New Company Name"
-                className="px-2 py-1 border rounded-md"
-              />
-              <button
-                onClick={handleAddCompany}
-                className="px-3 py-1 bg-green-600 text-white rounded-md flex items-center gap-1"
-              >
-                <PlusIcon className="h-5 w-5" />
-                Add
-              </button>
-              <select
-                value={companyToDelete}
-                onChange={(e) => setCompanyToDelete(e.target.value)}
-                className="px-2 py-1 border rounded-md"
-              >
-                <option value="">Select Company to Delete</option>
-                {companyNames.map(name => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-              <button
-                onClick={handleDeleteCompany}
-                className="px-3 py-1 bg-red-600 text-white rounded-md flex items-center gap-1"
-              >
-                <TrashIcon className="h-5 w-5" />
-                Delete
-              </button>
+      <div className="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <UsersIcon className="h-8 w-8 text-gray-600 dark:text-gray-400" />
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Company Balances</h2>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">Balances based on your recorded transactions.</p>
           </div>
         </div>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 mb-6">Balances based on transactions you have recorded.</p>
-        
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCompanyName}
+              onChange={(e) => setNewCompanyName(e.target.value)}
+              placeholder="New Company Name"
+              className="w-full sm:w-auto px-2 py-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+            />
             <button
-                onClick={() => setSelectedLocation('all')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedLocation === 'all'
-                        ? 'bg-blue-600 text-white shadow'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
+              onClick={handleAddCompany}
+              className="px-3 py-1 bg-green-600 text-white rounded-md flex items-center gap-1 shrink-0"
             >
-                All Your Locations
+              <PlusIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">Add</span>
             </button>
-            {sortedLocations.map(location => {
-                const isActive = selectedLocation === location;
-                return (
-                    <button
-                        key={location}
-                        onClick={() => setSelectedLocation(location)}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                            isActive
-                                ? 'bg-blue-600 text-white shadow'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                        }`}
-                    >
-                        {location}
-                    </button>
-                );
-            })}
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={companyToDelete}
+              onChange={(e) => setCompanyToDelete(e.target.value)}
+              className="w-full sm:w-auto px-2 py-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="">Select to Delete</option>
+              {companyNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleDeleteCompany}
+              disabled={!companyToDelete}
+              className="px-3 py-1 bg-red-600 text-white rounded-md flex items-center gap-1 shrink-0 disabled:opacity-50"
+            >
+              <TrashIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
+          </div>
         </div>
+      </div>
+        
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setSelectedLocation('all')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              selectedLocation === 'all'
+                  ? 'bg-blue-600 text-white shadow'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+          }`}
+        >
+          All Locations
+        </button>
+        {sortedLocations.map(location => {
+          const isActive = selectedLocation === location;
+          return (
+            <button
+              key={location}
+              onClick={() => setSelectedLocation(location)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                      ? 'bg-blue-600 text-white shadow'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+              }`}
+            >
+              {location}
+            </button>
+          );
+        })}
+      </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
+      {/* Table for larger screens */}
+      <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full">
             <thead className="border-b border-gray-200 dark:border-gray-700">
               <tr>
-                <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">
-                  Company Name
-                </th>
-                <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">
-                  Credits
-                </th>
-                <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">
-                  Debits
-                </th>
-                <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">
-                  Net Balance
-                </th>
+                <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Company Name</th>
+                <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Credits</th>
+                <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Debits</th>
+                <th scope="col" className="px-6 py-4 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Net Balance</th>
                 <th scope="col" className="px-6"></th>
               </tr>
             </thead>
@@ -187,30 +186,49 @@ const SummaryPage: React.FC = () => {
               {filteredSummaries.map((summary: FilteredSummary) => (
                 <tr key={summary.displayName} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    <Link to={getCompanyUrl(summary.companyName)} className="hover:underline">
-                      {summary.displayName} ({summary.transactionCount})
-                    </Link>
+                    <Link to={getCompanyUrl(summary.companyName)} className="hover:underline">{summary.displayName} ({summary.transactionCount})</Link>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 dark:text-green-400">
-                    ₹{summary.totalCredit.toLocaleString('en-IN')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 dark:text-red-400">
-                    ₹{summary.totalDebit.toLocaleString('en-IN')}
-                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600 dark:text-green-400">₹{summary.totalCredit.toLocaleString('en-IN')}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600 dark:text-red-400">₹{summary.totalDebit.toLocaleString('en-IN')}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-semibold ${summary.netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600'}`}>
                     {summary.netBalance < 0 ? '-' : ''}₹{Math.abs(summary.netBalance).toLocaleString('en-IN')}
                   </td>
-                   <td className="px-6 py-4 text-right">
-                     <Link to={getCompanyUrl(summary.companyName)} className="text-gray-400 hover:text-gray-600">
-                        <ChevronRightIcon className="h-5 w-5" />
-                     </Link>
-                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <Link to={getCompanyUrl(summary.companyName)} className="text-gray-400 hover:text-gray-600"><ChevronRightIcon className="h-5 w-5" /></Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Cards for smaller screens */}
+      <div className="md:hidden space-y-4">
+        {filteredSummaries.map((summary: FilteredSummary) => (
+            <Link to={getCompanyUrl(summary.companyName)} key={summary.displayName} className="block bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">{summary.displayName} ({summary.transactionCount})</h3>
+                    <ChevronRightIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div className="text-gray-500 dark:text-gray-400">Credits</div>
+                    <div className="text-right text-green-600 dark:text-green-400 font-medium">₹{summary.totalCredit.toLocaleString('en-IN')}</div>
+                    
+                    <div className="text-gray-500 dark:text-gray-400">Debits</div>
+                    <div className="text-right text-red-600 dark:text-red-400 font-medium">-₹{summary.totalDebit.toLocaleString('en-IN')}</div>
+                    
+                    <div className="col-span-2 border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                    <div className="text-gray-600 dark:text-gray-300 font-bold">Net Balance</div>
+                    <div className={`text-right font-bold ${summary.netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600'}`}>
+                        {summary.netBalance < 0 ? '-' : ''}₹{Math.abs(summary.netBalance).toLocaleString('en-IN')}
+                    </div>
+                </div>
+            </Link>
+        ))}
+      </div>
+
       {filteredSummaries.length === 0 && (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-xl mt-4">
             <p className="text-gray-500 dark:text-gray-400">No company data to display for the selected location.</p>
