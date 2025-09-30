@@ -18,7 +18,7 @@ const DebitEntryPage: React.FC = () => {
 
   const [person, setPerson] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualDate, setManualDate] = useState(new Date().toISOString().slice(0, 16));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,8 +86,8 @@ const DebitEntryPage: React.FC = () => {
             <p className="mt-1 text-lg font-semibold text-gray-800 dark:text-gray-200">{companyLocation}</p>
           </div>
           <div>
-            <label htmlFor="manualDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
-            <input type="date" name="manualDate" id="manualDate" value={manualDate} onChange={e => setManualDate(e.target.value)} className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+            <label htmlFor="manualDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date and Time</label>
+            <input type="datetime-local" name="manualDate" id="manualDate" value={manualDate} onChange={e => setManualDate(e.target.value)} className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
           </div>
           <div>
             <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name (Optional)</label>
