@@ -1,17 +1,21 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Transaction, NoteCounts } from '../types';
-import { COMPANY_NAMES, LOCATIONS, DENOMINATIONS } from '../constants';
+import { COMPANY_NAMES as defaultCompanyNames, LOCATIONS, DENOMINATIONS } from '../constants';
 import { googleSheets } from '../services/googleSheets';
+import { useAuth, User } from './AuthContext'; // Import the useAuth hook
 
 // Define the shape of the context
 interface AppContextType {
+  user: User | null;
   transactions: Transaction[];
   vault: NoteCounts;
   companyNames: string[];
   locations: string[];
-  addTransaction: (newTransaction: Omit<Transaction, 'id' | 'date'>) => Promise<void>;
+  addTransaction: (newTransaction: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (updatedTransaction: Transaction) => Promise<void>;
   deleteTransactionsByIds: (ids: string[]) => Promise<void>;
+  addCompany: (companyName: string) => Promise<void>;
+  deleteCompany: (companyName: string) => Promise<void>;
   googleSheetsConnected: boolean;
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
   manualSync: () => Promise<void>;
@@ -42,24 +46,20 @@ const initializeVault = (): NoteCounts => {
 
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
+  const { currentUser } = useAuth(); // Get the current user from AuthContext
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [companyNames, setCompanyNames] = useState<string[]>(defaultCompanyNames);
   const [vault, setVault] = useState<NoteCounts>(() => initializeVault());
   const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
-  // Get current user
-  const getCurrentUser = () => {
-    const user = localStorage.getItem('ali_enterprises_user');
-    return user ? JSON.parse(user) : null;
-  };
-
   // Filter transactions by current user for privacy
   const transactions = allTransactions.filter(tx => {
-    const currentUser = getCurrentUser();
     if (!currentUser) return false;
-    
-    const currentUserName = currentUser.displayName || currentUser.email || 'Unknown User';
-    return tx.recordedBy === currentUserName;
+    const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
+    const txRecordedBy = tx.recordedBy.replace('@gmail.com', '');
+    const simplifiedCurrentUserName = currentUserName.replace('@gmail.com', '');
+    return txRecordedBy.toLowerCase() === simplifiedCurrentUserName.toLowerCase();
   });
 
   // Recalculate vault based on current user's transactions only
@@ -68,8 +68,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     
     // If no user name provided, get current user
     if (!currentUserName) {
-      const currentUser = getCurrentUser();
-      currentUserName = currentUser?.displayName || currentUser?.email || 'Unknown User';
+        if(currentUser) {
+            currentUserName = currentUser?.displayName || currentUser?.email || 'Unknown User';
+        }
     }
     
     // Only process transactions for the current user
@@ -92,10 +93,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     });
     
     return newVault;
-  }, []);
+  }, [currentUser]);
 
   // Load data from localStorage on initial render
   useEffect(() => {
+    if(!currentUser) return; // Wait for user to be loaded
     try {
       // --- ROBUST TRANSACTIONS MIGRATION ---
       const storedTransactions = localStorage.getItem('transactions');
@@ -250,7 +252,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setAllTransactions([]);
       setVault(initializeVault());
     }
-  }, []);
+  }, [currentUser, recalculateVault]);
 
   // Save data to localStorage whenever it changes
   useEffect(() => {
@@ -268,13 +270,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.error("Failed to save vault to localStorage", error);
     }
   }, [vault]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('companyNames', JSON.stringify(companyNames));
+    } catch (error) {
+      console.error("Failed to save company names to localStorage", error);
+    }
+  }, [companyNames]);
   
 
-  const addTransaction = useCallback(async (newTransactionData: Omit<Transaction, 'id' | 'date'>) => {
+  const addTransaction = useCallback(async (newTransactionData: Omit<Transaction, 'id'>) => {
     const newTransaction: Transaction = {
       ...newTransactionData,
       id: `txn_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`,
-      date: new Date().toISOString(),
+      date: newTransactionData.date || new Date().toISOString(),
     };
 
     // Save to local state first
@@ -415,6 +425,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [transactions]);
 
+  const addCompany = useCallback(async (companyName: string) => {
+    setCompanyNames(prev => [...prev, companyName].sort());
+  }, []);
+
+  const deleteCompany = useCallback(async (companyName: string) => {
+    setCompanyNames(prev => prev.filter(c => c !== companyName));
+  }, []);
+
   const manualSync = useCallback(async () => {
     try {
       setSyncStatus('syncing');
@@ -448,13 +466,16 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   
 
   const value = {
+    user: currentUser,
     transactions,
     vault,
-    companyNames: COMPANY_NAMES,
+    companyNames,
     locations: LOCATIONS,
     addTransaction,
     updateTransaction,
     deleteTransactionsByIds,
+    addCompany,
+    deleteCompany,
     googleSheetsConnected,
     syncStatus,
     manualSync,

@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { UsersIcon } from '../components/icons/UsersIcon';
 import { ChevronRightIcon } from '../components/icons/ChevronRightIcon';
+import { PlusIcon } from '../components/icons/PlusIcon';
+import { TrashIcon } from '../components/icons/TrashIcon';
 
 interface FilteredSummary {
   displayName: string;
@@ -23,10 +25,25 @@ interface SummaryAccumulatorValue {
 type SummaryAccumulator = { [key: string]: SummaryAccumulatorValue };
 
 const SummaryPage: React.FC = () => {
-  const { transactions, locations } = useAppContext();
+  const { transactions, locations, companyNames, addCompany, deleteCompany } = useAppContext();
   const [selectedLocation, setSelectedLocation] = useState('all');
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [companyToDelete, setCompanyToDelete] = useState('');
 
   const sortedLocations = useMemo(() => [...locations].sort(), [locations]);
+
+  const handleAddCompany = async () => {
+    if (newCompanyName.trim() === '') return;
+    await addCompany(newCompanyName.trim().toUpperCase());
+    setNewCompanyName('');
+  };
+
+  const handleDeleteCompany = async () => {
+    if (companyToDelete.trim() === '') return;
+    // You might want to add a confirmation dialog here
+    await deleteCompany(companyToDelete.trim());
+    setCompanyToDelete('');
+  };
 
   const filteredSummaries = useMemo(() => {
     const relevantTransactions =
@@ -76,13 +93,46 @@ const SummaryPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-6 flex justify-between items-center">
             <div className="flex items-center gap-3">
                 <UsersIcon className="h-8 w-8 text-gray-600 dark:text-gray-400" />
                 <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Your Company Balances</h2>
             </div>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Balances based on transactions you have recorded.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newCompanyName}
+                onChange={(e) => setNewCompanyName(e.target.value)}
+                placeholder="New Company Name"
+                className="px-2 py-1 border rounded-md"
+              />
+              <button
+                onClick={handleAddCompany}
+                className="px-3 py-1 bg-green-600 text-white rounded-md flex items-center gap-1"
+              >
+                <PlusIcon className="h-5 w-5" />
+                Add
+              </button>
+              <select
+                value={companyToDelete}
+                onChange={(e) => setCompanyToDelete(e.target.value)}
+                className="px-2 py-1 border rounded-md"
+              >
+                <option value="">Select Company to Delete</option>
+                {companyNames.map(name => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <button
+                onClick={handleDeleteCompany}
+                className="px-3 py-1 bg-red-600 text-white rounded-md flex items-center gap-1"
+              >
+                <TrashIcon className="h-5 w-5" />
+                Delete
+              </button>
+          </div>
         </div>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 mb-6">Balances based on transactions you have recorded.</p>
         
         <div className="flex flex-wrap gap-2 mb-6">
             <button

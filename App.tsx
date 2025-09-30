@@ -16,8 +16,6 @@ import DebitEntryPage from './pages/DebitEntryPage';
 import UpiCreditPage from './pages/UpiCreditPage';
 import ReportPage from './pages/ReportPage';
 import EditTransactionPage from './pages/EditTransactionPage';
-import TailwindTest from './components/TailwindTest';
-
 
 const App: React.FC = () => {
   return (
@@ -51,7 +49,7 @@ const App: React.FC = () => {
                         <Route path="/upi-credit" element={<UpiCreditPage />} />
                         <Route path="/report/:companyName" element={<ReportPage />} />
                         <Route path="/edit/:transactionId" element={<EditTransactionPage />} />
-                        <Route path="/tailwind-test" element={<TailwindTest />} />
+                        
                         <Route path="*" element={<Navigate to="/" replace />} />
                       </Routes>
                     </main>

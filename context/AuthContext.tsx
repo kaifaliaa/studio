@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth } from '../firebase';
 
-interface User {
+export interface User {
   uid: string;
   email: string | null;
   displayName: string | null;

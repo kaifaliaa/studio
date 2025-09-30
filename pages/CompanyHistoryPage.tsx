@@ -18,7 +18,6 @@ import { RupeeIcon } from '../components/icons/RupeeIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
 
-
 const TransactionItem: React.FC<{
   transaction: Transaction;
   isSelected: boolean;
@@ -69,11 +68,10 @@ const TransactionItem: React.FC<{
 
 const CompanyHistoryPage: React.FC = () => {
   const { companyName } = useParams<{ companyName: string }>();
-  const [searchParams] = useSearchParams();
-  const { transactions, deleteTransactionsByIds } = useAppContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { transactions, deleteTransactionsByIds, addTransaction, user } = useAppContext();
   const navigate = useNavigate();
 
-  // Get location filter from URL parameters
   const locationFilter = searchParams.get('location');
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -83,25 +81,19 @@ const CompanyHistoryPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Initialize with current date by default, but reset to 'all' when showAllDates becomes true
-  const currentDate = new Date();
-  const [filterYear, setFilterYear] = useState('all');
-  const [filterMonth, setFilterMonth] = useState('all');
-  const [filterDay, setFilterDay] = useState('all');
+  const [filterYear, setFilterYear] = useState(searchParams.get('year') || 'all');
+  const [filterMonth, setFilterMonth] = useState(searchParams.get('month') || 'all');
+  const [filterDay, setFilterDay] = useState(searchParams.get('day') || 'all');
   const [filterType, setFilterType] = useState('all');
-  const [showAllDates, setShowAllDates] = useState(false);
-
+  const [showAllDates, setShowAllDates] = useState(searchParams.get('showAllDates') === 'true');
 
   const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
 
   const companyTransactions = useMemo(() => {
     let filtered = transactions.filter(tx => (tx.company || 'NA') === decodedCompanyName);
-    
-    // Apply location filter if specified in URL
     if (locationFilter) {
       filtered = filtered.filter(tx => tx.location === locationFilter);
     }
-    
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, decodedCompanyName, locationFilter]);
   
@@ -111,12 +103,9 @@ const CompanyHistoryPage: React.FC = () => {
     const years = new Set<string>();
     const months = new Set<string>();
     const days = new Set<string>();
-    
     companyTransactions.forEach(tx => {
         const d = new Date(tx.date);
         years.add(d.getFullYear().toString());
-        
-        // When showAllDates is true, show months/days based on selected filters
         if (showAllDates) {
             if (filterYear === 'all' || d.getFullYear().toString() === filterYear) {
                 months.add((d.getMonth() + 1).toString().padStart(2, '0'));
@@ -127,7 +116,6 @@ const CompanyHistoryPage: React.FC = () => {
             }
         }
     });
-    
     return {
         years: Array.from(years).sort((a,b) => parseInt(b) - parseInt(a)),
         months: Array.from(months).sort((a,b) => parseInt(a) - parseInt(b)),
@@ -137,38 +125,39 @@ const CompanyHistoryPage: React.FC = () => {
 
    useEffect(() => {
     setSelectedIds([]);
-  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates]);
-
+    const params = new URLSearchParams(searchParams);
+    if (showAllDates) {
+      params.set('showAllDates', 'true');
+      params.set('year', filterYear);
+      params.set('month', filterMonth);
+      params.set('day', filterDay);
+    } else {
+      params.delete('showAllDates');
+      params.delete('year');
+      params.delete('month');
+      params.delete('day');
+    }
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, searchParams, setSearchParams, transactions]);
 
   const filteredTransactions = useMemo(() => {
     return companyTransactions.filter(tx => {
         const txDate = new Date(tx.date);
-        
-        // Apply date filters based on showAllDates toggle
         if (!showAllDates) {
-          // Show current date only - filter by current date
           const currentDate = new Date();
-          if (txDate.getFullYear() !== currentDate.getFullYear()) return false;
-          if (txDate.getMonth() !== currentDate.getMonth()) return false;
-          if (txDate.getDate() !== currentDate.getDate()) return false;
+          if (txDate.getFullYear() !== currentDate.getFullYear() || txDate.getMonth() !== currentDate.getMonth() || txDate.getDate() !== currentDate.getDate()) return false;
         } else {
-          // Show all dates or apply manual date filters
           if (filterYear !== 'all' && txDate.getFullYear().toString() !== filterYear) return false;
           if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
           if (filterDay !== 'all' && txDate.getDate().toString().padStart(2, '0') !== filterDay) return false;
         }
-        
-        // Apply transaction type filter
         if (filterType !== 'all' && tx.type !== filterType) return false;
-        
-        // Apply search filter
         const searchLower = searchTerm.toLowerCase();
         if (searchTerm && !(
             tx.person?.toLowerCase().includes(searchLower) ||
             tx.amount.toString().includes(searchLower) ||
             tx.paymentMethod.toLowerCase().includes(searchLower)
         )) return false;
-
         return true;
     });
   }, [companyTransactions, searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates]);
@@ -201,29 +190,103 @@ const CompanyHistoryPage: React.FC = () => {
   };
   
   const handlePrint = () => {
-    // Navigate to report page with all current filters
     const params = new URLSearchParams();
-    
     if (locationFilter) params.append('location', locationFilter);
     if (filterType !== 'all') params.append('type', filterType);
-    
-    // Pass search term if it exists
     if (searchTerm.trim()) params.append('search', searchTerm.trim());
-    
-    // Pass the current date filter state
     if (showAllDates) {
       params.append('showAllDates', 'true');
       if (filterYear !== 'all') params.append('year', filterYear);
       if (filterMonth !== 'all') params.append('month', filterMonth);
       if (filterDay !== 'all') params.append('day', filterDay);
     }
-    
     const reportUrl = `/report/${encodeURIComponent(decodedCompanyName)}${params.toString() ? '?' + params.toString() : ''}`;
     navigate(reportUrl);
   };
-  const handleUpi = () => navigate('/upi-credit', { state: { companyName: decodedCompanyName, companyLocation } });
-  const handleNewDebit = () => navigate('/debit-entry', { state: { companyName: decodedCompanyName, companyLocation } });
+
+  const handleUpi = () => navigate('/upi-credit', { state: { companyName: decodedCompanyName, companyLocation: locationFilter || companyLocation } });
+  const handleNewDebit = () => navigate('/debit-entry', { state: { companyName: decodedCompanyName, companyLocation: locationFilter || companyLocation } });
   
+  const handleForwardEntry = async () => {
+    let forwardFromDate;
+    if (showAllDates) {
+      if (filterYear !== 'all' && filterMonth !== 'all' && filterDay !== 'all') {
+        forwardFromDate = new Date(parseInt(filterYear), parseInt(filterMonth) - 1, parseInt(filterDay), 23, 59, 59, 999);
+      } else {
+        alert("Please select a specific year, month, and day to forward a balance.");
+        return;
+      }
+    } else {
+      forwardFromDate = new Date();
+      forwardFromDate.setHours(23, 59, 59, 999);
+    }
+
+    if (filteredNetBalance <= 0) {
+      alert("There is no positive balance to forward.");
+      return;
+    }
+
+    if (!user) {
+      alert("You must be logged in to forward an entry.");
+      return;
+    }
+
+    const forwardAmount = filteredNetBalance;
+    const debitDate = new Date(forwardFromDate);
+    const creditDate = new Date(debitDate);
+    creditDate.setDate(creditDate.getDate() + 1);
+    creditDate.setHours(0, 0, 0, 0);
+
+    const debitTransaction = {
+      amount: forwardAmount,
+      company: decodedCompanyName,
+      date: debitDate.toISOString(),
+      location: locationFilter || companyLocation,
+      paymentMethod: 'cash',
+      person: 'Forwarded to Next Day',
+      type: 'debit' as 'debit',
+      recordedBy: user.displayName,
+      breakdown: {},
+    };
+
+    const creditTransaction = {
+      amount: forwardAmount,
+      company: decodedCompanyName,
+      date: creditDate.toISOString(),
+      location: locationFilter || companyLocation,
+      paymentMethod: 'cash',
+      person: 'Received from Previous Day',
+      type: 'credit' as 'credit',
+      recordedBy: user.displayName,
+      breakdown: {},
+    };
+
+    try {
+      await addTransaction(debitTransaction as Omit<Transaction, 'id'>);
+      await addTransaction(creditTransaction as Omit<Transaction, 'id'>);
+      alert('Balance forwarded successfully!');
+      
+      const year = creditDate.getFullYear().toString();
+      const month = (creditDate.getMonth() + 1).toString().padStart(2, '0');
+      const day = creditDate.getDate().toString().padStart(2, '0');
+
+      const newSearchParams = new URLSearchParams();
+      newSearchParams.set('year', year);
+      newSearchParams.set('month', month);
+      newSearchParams.set('day', day);
+      newSearchParams.set('showAllDates', 'true');
+      if(locationFilter) {
+        newSearchParams.set('location', locationFilter);
+      }
+
+      navigate(`${window.location.pathname}?${newSearchParams.toString()}`);
+
+    } catch (error) {
+      console.error('Failed to forward balance:', error);
+      alert('Failed to forward balance. Please try again.');
+    }
+  };
+
   const handleDeleteClick = () => {
     if (selectedIds.length === 0) return;
     setDeleteError(null);
@@ -243,6 +306,8 @@ const CompanyHistoryPage: React.FC = () => {
           setIsDeleting(false);
       }
   };
+
+  const isForwardDisabled = filteredNetBalance <= 0;
 
   if (!decodedCompanyName) return <div className="text-center p-8">Company name not found.</div>;
 
@@ -274,6 +339,9 @@ const CompanyHistoryPage: React.FC = () => {
               <button onClick={handleUpi} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
                   <span className="font-bold">₹</span> Add UPI
               </button>
+              <button onClick={handleForwardEntry} disabled={isForwardDisabled} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                  Forward Entry
+              </button>
               <button onClick={handleNewDebit} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-red-600 text-white hover:bg-red-700">
                   Add Debit
               </button>
@@ -294,14 +362,13 @@ const CompanyHistoryPage: React.FC = () => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Cash Credit</p><p className="text-3xl font-bold text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalCashCredit.toLocaleString('en-IN')}</p></div><div className="bg-gray-100 dark:bg-gray-900/20 p-3 rounded-full"><WalletIcon className="h-6 w-6 text-gray-600" /></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Other Credit</p><p className="text-3xl font-bold text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalUpiCredit.toLocaleString('en-IN')}</p></div><div className="bg-gray-100 dark:bg-gray-900/20 p-3 rounded-full"><RupeeIcon className="h-6 w-6 text-gray-600" /></div></div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered UPI Credit</p><p className="text-3xl font-bold text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalUpiCredit.toLocaleString('en-IN')}</p></div><div className="bg-gray-100 dark:bg-gray-900/20 p-3 rounded-full"><RupeeIcon className="h-6 w-6 text-gray-600" /></div></div>
       </div>
 
       {/* Filter Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-6 sticky top-[65px] z-5 no-print">
         <input type="text" placeholder="Search this company's transactions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
         
-        {/* Date Filter Toggle */}
         <div className="mb-4 flex items-center gap-4">
           <button
             onClick={() => setShowAllDates(!showAllDates)}
