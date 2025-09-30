@@ -9,6 +9,7 @@ export type PaymentMethod = 'cash' | 'upi';
 export interface Transaction {
   id: string;
   date: string; // ISO string format
+  manualDate?: string; // Optional manual date from user input
   type: TransactionType;
   paymentMethod: PaymentMethod;
   company?: string; // Optional

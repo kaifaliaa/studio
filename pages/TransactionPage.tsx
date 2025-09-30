@@ -26,7 +26,7 @@ const TransactionPage: React.FC = () => {
   const [location, setLocation] = useState('');
   const [recordedBy, setRecordedBy] = useState(currentUserName);
   const [breakdown, setBreakdown] = useState<NoteCounts>({});
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualDate, setManualDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Update recordedBy when user changes
   useEffect(() => {
@@ -48,7 +48,7 @@ const TransactionPage: React.FC = () => {
     setLocation('');
     setBreakdown({});
     setError(null);
-    setDate(new Date().toISOString().split('T')[0]);
+    setManualDate(new Date().toISOString().split('T')[0]);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,7 +74,7 @@ const TransactionPage: React.FC = () => {
         amount: totalAmount,
         notes: '', // No notes field in the new design
         breakdown,
-        date: new Date(date).toISOString(),
+        manualDate: manualDate,
       });
       setSuccessMessage(`Transaction of ₹${totalAmount.toLocaleString('en-IN')} recorded successfully!`);
       resetForm();
@@ -180,7 +180,7 @@ const TransactionPage: React.FC = () => {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
             </div>
-            <input type="date" name="date" id="date" value={date} onChange={e => setDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" />
+            <input type="date" name="date" id="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" />
           </div>
         </div>
 
