@@ -284,7 +284,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const newTransaction: Transaction = {
       ...newTransactionData,
       id: `txn_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`,
-      date: newTransactionData.manualDate ? new Date(newTransactionData.manualDate).toISOString() : new Date().toISOString(),
+      date: newTransactionData.date ? new Date(newTransactionData.date).toISOString() : new Date().toISOString(),
     };
 
     // Save to local state first

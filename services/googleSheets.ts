@@ -28,6 +28,7 @@ const transactionToData = (transaction: Transaction) => {
 export class GoogleSheetsService {
   private static instance: GoogleSheetsService;
   private webAppUrl: string;
+  private isAddingTransaction = false;
 
   private constructor() {
     this.webAppUrl = GOOGLE_APPS_SCRIPT_CONFIG.webAppUrl;
@@ -98,6 +99,11 @@ export class GoogleSheetsService {
 
   // Add transaction to Google Sheets
   async addTransaction(transaction: Transaction): Promise<boolean> {
+    if (this.isAddingTransaction) {
+      console.warn('Already adding a transaction, skipping this one to prevent duplicates.');
+      return false;
+    }
+    this.isAddingTransaction = true;
     try {
       const data = transactionToData(transaction);
       console.log('Adding transaction to Google Sheets:', transaction.id, data);
@@ -133,6 +139,8 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Failed to add transaction to Google Sheets:', error);
       return false;
+    } finally {
+      this.isAddingTransaction = false;
     }
   }
 
