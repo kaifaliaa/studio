@@ -11,7 +11,7 @@ interface AppContextType {
   vault: NoteCounts;
   companyNames: string[];
   locations: string[];
-  addTransaction: (newTransaction: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransaction: (newTransaction: Omit<Transaction, 'id'> & { manualDate?: string }) => Promise<void>;
   updateTransaction: (updatedTransaction: Transaction) => Promise<void>;
   deleteTransactionsByIds: (ids: string[]) => Promise<void>;
   addCompany: (companyName: string) => Promise<void>;
@@ -280,11 +280,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }, [companyNames]);
   
 
-  const addTransaction = useCallback(async (newTransactionData: Omit<Transaction, 'id'>) => {
+  const addTransaction = useCallback(async (newTransactionData: Omit<Transaction, 'id'> & { manualDate?: string }) => {
+    const transactionDate = newTransactionData.manualDate || newTransactionData.date;
     const newTransaction: Transaction = {
       ...newTransactionData,
       id: `txn_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`,
-      date: newTransactionData.date ? new Date(newTransactionData.date).toISOString() : new Date().toISOString(),
+      date: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString(),
     };
 
     // Save to local state first
