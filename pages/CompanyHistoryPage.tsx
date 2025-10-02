@@ -235,7 +235,7 @@ const CompanyHistoryPage: React.FC = () => {
     const debitDate = new Date(forwardFromDate);
     const creditDate = new Date(debitDate);
     creditDate.setDate(creditDate.getDate() + 1);
-    creditDate.setHours(0, 0, 0, 0);
+    creditDate.setHours(12, 0, 0, 0);
 
     const debitTransaction = {
       amount: forwardAmount,
