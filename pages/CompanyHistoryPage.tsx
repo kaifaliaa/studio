@@ -78,13 +78,13 @@ const CompanyHistoryPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [filterYear, setFilterYear] = useState(searchParams.get('year') || 'all');
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') || 'all');
   const [filterDay, setFilterDay] = useState(searchParams.get('day') || 'all');
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState(searchParams.get('type') || 'all');
   const [showAllDates, setShowAllDates] = useState(searchParams.get('showAllDates') === 'true');
 
   const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
@@ -126,6 +126,11 @@ const CompanyHistoryPage: React.FC = () => {
    useEffect(() => {
     setSelectedIds([]);
     const params = new URLSearchParams(searchParams);
+    if (searchTerm.trim()) {
+      params.set('search', searchTerm.trim());
+    } else {
+      params.delete('search');
+    }
     if (showAllDates) {
       params.set('showAllDates', 'true');
       params.set('year', filterYear);
@@ -137,8 +142,13 @@ const CompanyHistoryPage: React.FC = () => {
       params.delete('month');
       params.delete('day');
     }
+    if (filterType !== 'all') {
+      params.set('type', filterType);
+    } else {
+      params.delete('type');
+    }
     setSearchParams(params, { replace: true });
-  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, searchParams, setSearchParams, transactions]);
+  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, setSearchParams]);
 
   const filteredTransactions = useMemo(() => {
     return companyTransactions.filter(tx => {
@@ -153,7 +163,7 @@ const CompanyHistoryPage: React.FC = () => {
         }
         if (filterType !== 'all' && tx.type !== filterType) return false;
         const searchLower = searchTerm.toLowerCase();
-        if (searchTerm && !(
+        if (searchTerm.trim() && !(
             tx.person?.toLowerCase().includes(searchLower) ||
             tx.amount.toString().includes(searchLower) ||
             tx.paymentMethod.toLowerCase().includes(searchLower)
@@ -221,11 +231,6 @@ const CompanyHistoryPage: React.FC = () => {
       forwardFromDate.setHours(23, 59, 59, 999);
     }
 
-    if (filteredNetBalance <= 0) {
-      alert("There is no positive balance to forward.");
-      return;
-    }
-
     if (!user) {
       alert("You must be logged in to forward an entry.");
       return;
@@ -238,7 +243,7 @@ const CompanyHistoryPage: React.FC = () => {
     creditDate.setHours(12, 0, 0, 0);
 
     const debitTransaction = {
-      amount: forwardAmount,
+      amount: Math.abs(forwardAmount),
       company: decodedCompanyName,
       date: debitDate.toISOString(),
       location: locationFilter || companyLocation,
@@ -250,7 +255,7 @@ const CompanyHistoryPage: React.FC = () => {
     };
 
     const creditTransaction = {
-      amount: forwardAmount,
+      amount: Math.abs(forwardAmount),
       company: decodedCompanyName,
       date: creditDate.toISOString(),
       location: locationFilter || companyLocation,
@@ -262,8 +267,15 @@ const CompanyHistoryPage: React.FC = () => {
     };
 
     try {
-      await addTransaction(debitTransaction as Omit<Transaction, 'id'>);
-      await addTransaction(creditTransaction as Omit<Transaction, 'id'>);
+      if (forwardAmount > 0) {
+        await addTransaction(debitTransaction as Omit<Transaction, 'id'>);
+        await addTransaction(creditTransaction as Omit<Transaction, 'id'>);
+      } else {
+        // If balance is negative, we credit the current day and debit the next.
+        await addTransaction({ ...debitTransaction, type: 'credit', person: 'Negative Balance Forwarded' } as Omit<Transaction, 'id'>);
+        await addTransaction({ ...creditTransaction, type: 'debit', person: 'Negative Balance Received' } as Omit<Transaction, 'id'>);
+      }
+      
       alert('Balance forwarded successfully!');
       
       const year = creditDate.getFullYear().toString();
@@ -307,8 +319,6 @@ const CompanyHistoryPage: React.FC = () => {
       }
   };
 
-  const isForwardDisabled = filteredNetBalance <= 0;
-
   if (!decodedCompanyName) return <div className="text-center p-8">Company name not found.</div>;
 
   return (
@@ -339,7 +349,7 @@ const CompanyHistoryPage: React.FC = () => {
               <button onClick={handleUpi} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
                   <span className="font-bold">₹</span> Add UPI
               </button>
-              <button onClick={handleForwardEntry} disabled={isForwardDisabled} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={handleForwardEntry} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600">
                   Forward Entry
               </button>
               <button onClick={handleNewDebit} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-red-600 text-white hover:bg-red-700">
@@ -367,7 +377,7 @@ const CompanyHistoryPage: React.FC = () => {
 
       {/* Filter Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-6 sticky top-[65px] z-5 no-print">
-        <input type="text" placeholder="Search this company's transactions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
+        <input type="text" placeholder="Search by person, amount, or payment method..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
         
         <div className="mb-4 flex items-center gap-4">
           <button

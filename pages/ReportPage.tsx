@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
 
@@ -8,29 +8,18 @@ const ReportPage: React.FC = () => {
     const { transactions } = useAppContext();
     const [generationDate] = useState(new Date());
     
-    // Get filter parameters from URL - same as CompanyHistoryPage
-    const [searchParams] = useState(() => new URLSearchParams(window.location.search));
-    const locationFilter = searchParams.get('location') || null;
+    const [searchParams] = useSearchParams();
+    const locationFilter = searchParams.get('location');
     const filterType = searchParams.get('type') || 'all';
-    const filterName = searchParams.get('name') || 'all';
     const searchTerm = searchParams.get('search') || '';
-    
-    // Check if we should show current date only (default behavior)
     const showAllDates = searchParams.get('showAllDates') === 'true';
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear().toString();
-    const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-    const currentDay = currentDate.getDate().toString().padStart(2, '0');
-    
-    // Get manual date filters from URL if showing all dates
-    const filterYear = showAllDates ? (searchParams.get('year') || 'all') : currentYear;
-    const filterMonth = showAllDates ? (searchParams.get('month') || 'all') : currentMonth;
-    const filterDay = showAllDates ? (searchParams.get('day') || 'all') : currentDay;
+    const filterYear = searchParams.get('year') || 'all';
+    const filterMonth = searchParams.get('month') || 'all';
+    const filterDay = searchParams.get('day') || 'all';
 
     const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
 
     useEffect(() => {
-        // Automatically trigger print dialog when component mounts
         const timer = setTimeout(() => window.print(), 500);
         return () => clearTimeout(timer);
     }, []);
@@ -38,14 +27,11 @@ const ReportPage: React.FC = () => {
     const companyTransactions = useMemo(() => {
         let filtered = transactions.filter(tx => (tx.company || 'NA') === decodedCompanyName);
         
-        // Apply location filter if specified
         if (locationFilter && locationFilter !== 'all') {
             filtered = filtered.filter(tx => tx.location === locationFilter);
         }
         
-        // Apply date filters - default to current date unless showAllDates is true
         if (!showAllDates) {
-            // Show current date only - same logic as CompanyHistoryPage
             const today = new Date();
             filtered = filtered.filter(tx => {
                 const txDate = new Date(tx.date);
@@ -54,7 +40,6 @@ const ReportPage: React.FC = () => {
                        txDate.getDate() === today.getDate();
             });
         } else {
-            // Apply manual date filters only if showAllDates is true
             if (filterYear !== 'all') {
                 filtered = filtered.filter(tx => new Date(tx.date).getFullYear().toString() === filterYear);
             }
@@ -66,17 +51,10 @@ const ReportPage: React.FC = () => {
             }
         }
         
-        // Apply transaction type filter
         if (filterType !== 'all') {
             filtered = filtered.filter(tx => tx.type === filterType);
         }
         
-        // Apply person name filter (only if provided in URL)
-        if (filterName && filterName !== 'all') {
-            filtered = filtered.filter(tx => (tx.person || 'N/A') === filterName);
-        }
-        
-        // Apply search filter - same logic as CompanyHistoryPage
         if (searchTerm.trim()) {
             const searchLower = searchTerm.toLowerCase();
             filtered = filtered.filter(tx => 
@@ -87,7 +65,7 @@ const ReportPage: React.FC = () => {
         }
         
         return filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [transactions, decodedCompanyName, locationFilter, filterType, filterName, showAllDates, filterYear, filterMonth, filterDay, searchTerm]);
+    }, [transactions, decodedCompanyName, locationFilter, filterType, showAllDates, filterYear, filterMonth, filterDay, searchTerm]);
 
     const reportData = useMemo(() => {
         if (!companyTransactions.length) return null;
@@ -124,11 +102,10 @@ const ReportPage: React.FC = () => {
         hour: '2-digit', minute: '2-digit', hour12: true,
     });
 
-    // Create a filter description for the report header
     const getFilterDescription = () => {
         const parts = [];
         if (!showAllDates) {
-            parts.push(`Date: ${currentDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`);
+            parts.push(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`);
         } else {
             if (filterYear !== 'all') parts.push(`Year: ${filterYear}`);
             if (filterMonth !== 'all') parts.push(`Month: ${filterMonth}`);
@@ -136,7 +113,6 @@ const ReportPage: React.FC = () => {
         }
         if (locationFilter && locationFilter !== 'all') parts.push(`Location: ${locationFilter}`);
         if (filterType !== 'all') parts.push(`Type: ${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`);
-        if (filterName !== 'all') parts.push(`Person: ${filterName}`);
         if (searchTerm.trim()) parts.push(`Search: "${searchTerm.trim()}"`);
         return parts.length > 0 ? parts.join(' | ') : 'All transactions';
     };
