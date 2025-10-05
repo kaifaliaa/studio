@@ -20,9 +20,21 @@ const ReportPage: React.FC = () => {
     const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
 
     useEffect(() => {
-        const timer = setTimeout(() => window.print(), 500);
-        return () => clearTimeout(timer);
-    }, []);
+        const originalTitle = document.title;
+        const today = new Date();
+        const dateString = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+        document.title = `${decodedCompanyName}_Report_${dateString}`;
+        
+        const timer = setTimeout(() => {
+            window.print();
+            document.title = originalTitle;
+        }, 500);
+        
+        return () => {
+            clearTimeout(timer);
+            document.title = originalTitle;
+        };
+    }, [decodedCompanyName]);
     
     const companyTransactions = useMemo(() => {
         let filtered = transactions.filter(tx => (tx.company || 'NA') === decodedCompanyName);
