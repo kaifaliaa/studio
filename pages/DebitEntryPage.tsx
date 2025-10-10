@@ -18,7 +18,7 @@ const DebitEntryPage: React.FC = () => {
 
   const [person, setPerson] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [manualDate, setManualDate] = useState(new Date().toISOString().slice(0, 16));
+  const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,9 +40,6 @@ const DebitEntryPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // The `manualDate` from `datetime-local` input is in 'YYYY-MM-DDTHH:mm' format.
-      // We treat it as a UTC timestamp to prevent timezone conversions that could change the date.
-      const transactionDate = manualDate + ':00.000Z';
       await addTransaction({
         type: 'debit',
         paymentMethod: 'cash',
@@ -53,7 +50,7 @@ const DebitEntryPage: React.FC = () => {
         amount: Number(amount),
         notes: '',
         breakdown: {},
-        date: transactionDate,
+        manualDate: manualDate,
       });
       navigate(`/company/${encodeURIComponent(companyName)}`);
     } catch (err: any) {
