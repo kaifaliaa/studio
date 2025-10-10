@@ -18,7 +18,7 @@ const UpiCreditPage: React.FC = () => {
 
   const [person, setPerson] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+  const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
