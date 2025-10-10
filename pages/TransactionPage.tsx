@@ -26,7 +26,7 @@ const TransactionPage: React.FC = () => {
   const [location, setLocation] = useState('');
   const [recordedBy, setRecordedBy] = useState(currentUserName);
   const [breakdown, setBreakdown] = useState<NoteCounts>({});
-  const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+  const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
 
   // Update recordedBy when user changes
   useEffect(() => {
@@ -48,7 +48,7 @@ const TransactionPage: React.FC = () => {
     setLocation('');
     setBreakdown({});
     setError(null);
-    setManualDate(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+    setManualDate(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
