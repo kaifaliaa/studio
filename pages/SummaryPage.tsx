@@ -29,6 +29,7 @@ const SummaryPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [newCompanyName, setNewCompanyName] = useState('');
   const [companyToDelete, setCompanyToDelete] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const sortedLocations = useMemo(() => [...locations].sort(), [locations]);
   const activeLocation = selectedLocation ?? (sortedLocations.length > 0 ? sortedLocations[0] : null);
@@ -77,8 +78,9 @@ const SummaryPage: React.FC = () => {
         ...summary,
         netBalance: summary.totalCredit - summary.totalDebit,
       }))
+      .filter(summary => summary.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [transactions, activeLocation]);
+  }, [transactions, activeLocation, searchTerm]);
 
   const getCompanyUrl = (companyName: string) => {
     const encodedName = encodeURIComponent(companyName);
@@ -155,6 +157,16 @@ const SummaryPage: React.FC = () => {
             </button>
           );
         })}
+      </div>
+
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search Company Name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+        />
       </div>
 
       {/* Table for larger screens */}
