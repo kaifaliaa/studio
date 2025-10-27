@@ -18,9 +18,13 @@ const DebitEntryPage: React.FC = () => {
 
   const [person, setPerson] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [manualDate, setManualDate] = useState(new Date().toISOString().slice(0, 16));
+  const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const companyHistoryUrl = companyName && companyLocation 
+    ? `/company/${encodeURIComponent(companyName)}?location=${encodeURIComponent(companyLocation)}`
+    : '/summary';
 
   useEffect(() => {
     if (!companyName || !companyLocation) {
@@ -40,9 +44,6 @@ const DebitEntryPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // The `manualDate` from `datetime-local` input is in 'YYYY-MM-DDTHH:mm' format.
-      // We treat it as a UTC timestamp to prevent timezone conversions that could change the date.
-      const transactionDate = manualDate + ':00.000Z';
       await addTransaction({
         type: 'debit',
         paymentMethod: 'cash',
@@ -53,9 +54,9 @@ const DebitEntryPage: React.FC = () => {
         amount: Number(amount),
         notes: '',
         breakdown: {},
-        date: transactionDate,
+        manualDate: manualDate,
       });
-      navigate(`/company/${encodeURIComponent(companyName)}`);
+      navigate(companyHistoryUrl);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
       setIsSubmitting(false);
@@ -67,7 +68,7 @@ const DebitEntryPage: React.FC = () => {
   return (
     <div className="max-w-lg mx-auto">
       <div className="flex items-center gap-4 mb-6">
-        <Link to={`/company/${encodeURIComponent(companyName)}`} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
+        <Link to={companyHistoryUrl} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
           <ArrowLeftIcon className="h-5 w-5"/>
           <span>Back</span>
         </Link>
