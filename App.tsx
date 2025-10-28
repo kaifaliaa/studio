@@ -32,7 +32,7 @@ const App: React.FC = () => {
                 <ProtectedRoute>
                   <div className="flex flex-col min-h-screen">
                     {/* Header - Hidden on small screens, shown on larger screens */}
-                    <div className="hidden md:block">
+                    <div className="hidden md:block no-print">
                       <Header />
                     </div>
                     
@@ -55,7 +55,7 @@ const App: React.FC = () => {
                     </main>
                     
                     {/* Bottom Navigation - Only on mobile/tablet */}
-                    <div className="md:hidden">
+                    <div className="md:hidden no-print">
                       <BottomNavigation />
                     </div>
                   </div>

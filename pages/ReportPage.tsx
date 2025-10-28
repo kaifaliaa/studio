@@ -178,20 +178,20 @@ const ReportPage: React.FC = () => {
                         {reportData.customers.map(customer => (
                             <tr key={customer.name}>
                                 <td className="border border-black p-1 sm:p-2 font-semibold text-xs sm:text-sm">{customer.name}</td>
-                                {[0, 1, 2, 3].map(i => <td key={`cash-${i}`} className="border border-black p-1 sm:p-2 text-right text-xs sm:text-sm">{customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}</td>)}
-                                {[0, 1, 2, 3].map(i => <td key={`upi-${i}`} className="border border-black p-1 sm:p-2 text-right text-xs sm:text-sm">{customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}</td>)}
+                                {[0, 1, 2, 3].map(i => <td key={`cash-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}</td>)}
+                                {[0, 1, 2, 3].map(i => <td key={`upi-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}</td>)}
                                 <td className="border border-black p-1 sm:p-2 text-right font-bold text-xs sm:text-sm">{currencyFormatter.format(customer.total)}</td>
                             </tr>
                         ))}
                     </tbody>
                     <tfoot className="font-bold">
-                        {/* Total Credit Row */}
+                        
                         <tr>
                             <td colSpan={9} className="border-t-2 border-black p-1 sm:p-2 text-right text-xs sm:text-sm">Total Credit</td>
                             <td className="border-t-2 border-black border-l border-black p-1 sm:p-2 text-right bg-green-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalCredit)}</td>
                         </tr>
 
-                        {/* Entry (Debit) Row */}
+                       
                         <tr>
                             <td className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Entry</td>
                             {[0, 1, 2, 3].map(i => (
@@ -199,12 +199,12 @@ const ReportPage: React.FC = () => {
                                     {reportData.debitAmounts[i] ? currencyFormatter.format(reportData.debitAmounts[i]) : ''}
                                 </td>
                             ))}
-                            {/* Empty cells to push the total to the end */}
+                            
                             <td colSpan={4} className="border-y border-r border-black p-1 sm:p-2"></td>
                             <td className="border border-black p-1 sm:p-2 text-right bg-red-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalDebit)}</td>
                         </tr>
 
-                        {/* Closing Balance Row */}
+                       
                         <tr>
                             <td colSpan={9} className="p-1 sm:p-2 text-right text-xs sm:text-sm">Closing Balance</td>
                             <td className={`border border-black p-1 sm:p-2 text-right text-xs sm:text-sm ${
@@ -219,10 +219,7 @@ const ReportPage: React.FC = () => {
                 </table>
             </div>
 
-             <div className="mt-4 sm:mt-8 text-center no-print">
-                <Link to={`/company/${companyName}`} className="px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm bg-gray-200 rounded-md hover:bg-gray-300">Go Back</Link>
-                <button onClick={() => window.print()} className="ml-2 sm:ml-4 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">Print Again</button>
-            </div>
+            
         </div>
     );
 };
