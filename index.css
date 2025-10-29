@@ -44,7 +44,7 @@ body {
   .print-container {
     box-shadow: none !important;
     border: none !important;
-    padding: 8px !important;
+    padding: 0px !important;
     font-size: 10px !important;
   }
   /* Hide bottom navigation in print */
@@ -59,9 +59,10 @@ body {
   }
   
   th, td {
-    padding: 2px !important;
+    padding: 1px !important;
     font-size: 8px !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
   }
   
   /* Ensure table fits on mobile screens */
@@ -78,7 +79,7 @@ body {
   /* Adjust spacing for mobile print */
   .print-container {
     margin: 0 !important;
-    padding: 4px !important;
+    padding: 0px !important;
   }
   
   /* Make buttons smaller in print view */
