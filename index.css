@@ -38,13 +38,13 @@ body {
     display: none !important;
   }
   main {
-    padding: 20px !important;
+    padding: 40px !important;
     margin: 0 !important;
   }
   .print-container {
     box-shadow: none !important;
     border: none !important;
-    padding: 20px !important;
+    padding: 40px !important;
     font-size: 10px !important;
     margin: 0 !important;
   }
