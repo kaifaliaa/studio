@@ -106,6 +106,25 @@ class LocalDBService {
       };
     });
   }
+
+  public async clearAndRepopulateTransactions(transactions: Transaction[]): Promise<void> {
+    await this.clearTransactions();
+    const db = await this.openDB();
+    const dbTransaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = dbTransaction.objectStore(STORE_NAME);
+    for (const transaction of transactions) {
+        store.put(transaction);
+    }
+    return new Promise((resolve, reject) => {
+        dbTransaction.oncomplete = () => {
+            resolve();
+        };
+        dbTransaction.onerror = () => {
+            console.error('Error repopulating transactions in IndexedDB:', dbTransaction.error);
+            reject('Error repopulating transactions');
+        };
+    });
+}
 }
 
 export const localDB = new LocalDBService();
