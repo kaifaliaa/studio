@@ -3,7 +3,7 @@ import { Transaction, NoteCounts } from '../types';
 import { COMPANY_NAMES as defaultCompanyNames, LOCATIONS, DENOMINATIONS } from '../constants';
 import { googleSheets } from '../services/googleSheets';
 import { useAuth, User } from './AuthContext';
-import { localDB } from '../services/localDB';
+import { localDB } from '../services/LocalDBService';
 
 interface AppContextType {
   user: User | null;
@@ -19,6 +19,7 @@ interface AppContextType {
   googleSheetsConnected: boolean;
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
   manualSync: () => Promise<void>;
+  clearLocalDB: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -321,6 +322,17 @@ useEffect(() => {
   const manualSync = useCallback(async () => {
       await syncWithGoogleSheets();
   }, [syncWithGoogleSheets]);
+
+  const clearLocalDB = useCallback(async () => {
+    try {
+      await localDB.clearTransactions();
+      setAllTransactions([]);
+      setVault(initializeVault());
+      console.log('✅ Local database cleared successfully.');
+    } catch (error) {
+      console.error('❌ Failed to clear local database:', error);
+    }
+  }, []);
   
 
   const value = {
@@ -337,6 +349,7 @@ useEffect(() => {
     googleSheetsConnected,
     syncStatus,
     manualSync,
+    clearLocalDB,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

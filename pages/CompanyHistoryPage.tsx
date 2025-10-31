@@ -27,7 +27,7 @@ const TransactionItem: React.FC<{
 
   const formattedDate = new Date(date).toLocaleString('en-IN', {
     day: '2-digit', month: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true,
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
   });
 
   return (
