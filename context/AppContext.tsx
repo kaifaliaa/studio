@@ -84,46 +84,41 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     return newVault;
   }, [currentUser]);
 
-  const syncWithGoogleSheets = useCallback(async () => {
+  const manualSync = useCallback(async () => {
     if (!currentUser) return;
 
     setSyncStatus('syncing');
     try {
-        console.log('🔄 Starting sync with Google Sheets...');
+        console.log('🔄 Starting manual sync with Google Sheets...');
         const isConnected = await googleSheets.testConnection();
         if (isConnected) {
             setGoogleSheetsConnected(true);
-            console.log('✅ Google Sheets connected. Initializing sheet...');
-            await googleSheets.initializeSheet();
 
-            console.log('📥 Fetching transactions from Google Sheets...');
+            const localTransactions = await localDB.getTransactions();
+            console.log(`💿 Loaded ${localTransactions.length} local transactions for sync.`);
+
             const sheetTransactions = await googleSheets.getAllTransactions();
             console.log(`📥 Fetched ${sheetTransactions.length} transactions from sheets.`);
 
-            const localTransactions = await localDB.getTransactions();
-            console.log(`💿 Loaded ${localTransactions.length} local transactions.`);
-
             const sheetTxMap = new Map(sheetTransactions.map(tx => [tx.id, tx]));
-            const mergedTransactions = [...sheetTransactions];
 
+            // Upload local transactions that are not in sheets
             for (const localTx of localTransactions) {
                 if (!sheetTxMap.has(localTx.id)) {
                     console.log(`📤 Uploading new local transaction ${localTx.id} to Google Sheets.`);
-                    try {
-                        await googleSheets.addTransaction(localTx);
-                        mergedTransactions.push(localTx);
-                    } catch (uploadError) {
-                        console.error(`❌ Failed to upload transaction ${localTx.id}:`, uploadError);
-                        mergedTransactions.push(localTx); 
-                    }
+                    await googleSheets.addTransaction(localTx);
                 }
             }
 
-            const finalSorted = mergedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            console.log(`📊 Merged transaction count: ${finalSorted.length}`);
+            // After uploading, get the final state from Google Sheets
+            console.log('📥 Fetching final transaction list from Google Sheets...');
+            const finalSheetTransactions = await googleSheets.getAllTransactions();
+
+            const finalSorted = finalSheetTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            console.log(`📊 Final merged transaction count: ${finalSorted.length}`);
             setAllTransactions(finalSorted);
             await localDB.clearAndRepopulateTransactions(finalSorted);
-            console.log('💿 Local database updated with merged transactions.');
+            console.log('💿 Local database updated with final transactions.');
 
             const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
             const recalculatedVault = recalculateVault(finalSorted, currentUserName);
@@ -131,7 +126,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             console.log('✅ Vault recalculated after sync.');
 
             setSyncStatus('success');
-            console.log('✅ Sync with Google Sheets completed successfully.');
+            console.log('✅ Manual sync completed successfully.');
         } else {
             setGoogleSheetsConnected(false);
             setSyncStatus('error');
@@ -140,39 +135,52 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     } catch (error) {
         setGoogleSheetsConnected(false);
         setSyncStatus('error');
-        console.error('💥 Sync failed:', error);
+        console.error('💥 Manual sync failed:', error);
     }
 }, [currentUser, recalculateVault]);
 
 useEffect(() => {
     if (!currentUser) return;
 
-    const loadLocalDataAndSync = async () => {
+    // On initial load, fetch data from Google Sheets to ensure data is fresh
+    const initialLoad = async () => {
+        setSyncStatus('syncing');
         try {
-            console.log('🔄 Loading initial data from IndexedDB...');
-            const localTransactions = await localDB.getTransactions();
-            console.log(`✅ Loaded ${localTransactions.length} transactions from IndexedDB`);
-            const sortedTransactions = localTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-            setAllTransactions(sortedTransactions);
+            console.log('🔄 Initializing app and fetching data from Google Sheets...');
+            const isConnected = await googleSheets.testConnection();
+            if (isConnected) {
+                setGoogleSheetsConnected(true);
+                const sheetTransactions = await googleSheets.getAllTransactions();
+                const sortedTransactions = sheetTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                
+                setAllTransactions(sortedTransactions);
+                await localDB.clearAndRepopulateTransactions(sortedTransactions);
+                console.log(`✅ Loaded and synced ${sortedTransactions.length} transactions from Google Sheets.`);
 
-            console.log('🧮 Recalculating vault from local data...');
-            const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
-            const recalculatedVault = recalculateVault(sortedTransactions, currentUserName);
-            setVault(recalculatedVault);
-            console.log('✅ Vault recalculated.');
+                const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
+                const recalculatedVault = recalculateVault(sortedTransactions, currentUserName);
+                setVault(recalculatedVault);
+                console.log('✅ Vault recalculated on initial load.');
 
-            // Trigger background sync
-            syncWithGoogleSheets();
-
+                setSyncStatus('success');
+            } else {
+                // If offline, load from local DB
+                console.warn('❌ Google Sheets connection failed. Loading from local DB.');
+                setGoogleSheetsConnected(false);
+                const localTransactions = await localDB.getTransactions();
+                const sortedTransactions = localTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                setAllTransactions(sortedTransactions);
+                setSyncStatus('idle');
+            }
         } catch (error) {
-            console.error("CRITICAL: Failed to load local data. Resetting application state.", error);
-            setAllTransactions([]);
-            setVault(initializeVault());
+            setGoogleSheetsConnected(false);
+            setSyncStatus('error');
+            console.error("CRITICAL: Failed to load initial data.", error);
         }
     };
 
-    loadLocalDataAndSync();
-}, [currentUser, syncWithGoogleSheets, recalculateVault]);
+    initialLoad();
+}, [currentUser, recalculateVault]);
 
   useEffect(() => {
     try {
@@ -214,9 +222,14 @@ useEffect(() => {
 
         if (googleSheetsConnected) {
           setSyncStatus('syncing');
-          await googleSheets.addTransaction(newTransaction);
-          setSyncStatus('success');
-          console.log(`✅ Transaction ${newTransaction.id} synced to Google Sheets.`);
+          const success = await googleSheets.addTransaction(newTransaction);
+          if (success) {
+              setSyncStatus('success');
+              console.log(`✅ Transaction ${newTransaction.id} synced to Google Sheets.`);
+          } else {
+              setSyncStatus('error');
+              console.warn(`⚠️ Transaction ${newTransaction.id} might be a duplicate or failed to sync.`);
+          }
         }
       } catch (error) {
         setSyncStatus('error');
@@ -319,9 +332,6 @@ useEffect(() => {
     setCompanyNames(prev => prev.filter(c => c !== companyName));
   }, []);
 
-  const manualSync = useCallback(async () => {
-      await syncWithGoogleSheets();
-  }, [syncWithGoogleSheets]);
 
   const clearLocalDB = useCallback(async () => {
     try {

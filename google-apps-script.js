@@ -193,11 +193,21 @@ function initializeSheet() {
 }
 
 /**
- * Add a new transaction
+ * Add a new transaction if it doesn't already exist
  */
 function addTransaction(transactionData) {
   const sheet = getOrCreateSheet();
+  const data = sheet.getDataRange().getValues();
   
+  // Check if transaction ID already exists
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === transactionData.id) {
+      Logger.log('Transaction with ID ' + transactionData.id + ' already exists. Skipping.');
+      return; // Exit if transaction is a duplicate
+    }
+  }
+  
+  // If no duplicate is found, add the new transaction
   const row = [
     transactionData.id,
     transactionData.date,
@@ -214,6 +224,7 @@ function addTransaction(transactionData) {
   ];
   
   sheet.appendRow(row);
+  Logger.log('Transaction with ID ' + transactionData.id + ' added successfully.');
 }
 
 /**
