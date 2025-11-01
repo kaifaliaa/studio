@@ -12,7 +12,7 @@ interface AppContextType {
   companyNames: string[];
   locations: string[];
   addTransaction: (newTransaction: Omit<Transaction, 'id'> & { manualDate?: string }) => Promise<void>;
-  updateTransaction: (updatedTransaction: Transaction) => Promise<void>;
+  updateTransaction: (updatedTransaction: Transaction & { manualDate?: string }) => Promise<void>;
   deleteTransactionsByIds: (ids: string[]) => Promise<void>;
   addCompany: (companyName: string) => Promise<void>;
   deleteCompany: (companyName: string) => Promise<void>;
@@ -238,8 +238,11 @@ useEffect(() => {
     })();
   }, [googleSheetsConnected]);
 
-  const updateTransaction = useCallback(async (updatedTransaction: Transaction) => {
+  const updateTransaction = useCallback(async (updatedTransaction: Transaction & { manualDate?: string }) => {
     // UI Update First
+    if (updatedTransaction.manualDate) {
+      updatedTransaction.date = new Date(updatedTransaction.manualDate).toISOString();
+    }
     const originalTransaction = allTransactions.find(tx => tx.id === updatedTransaction.id);
     setAllTransactions(prev => prev.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     // Vault update
