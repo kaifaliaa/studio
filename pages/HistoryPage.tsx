@@ -25,14 +25,14 @@ const HistoryPage: React.FC = () => {
   const [filterYear, setFilterYear] = useState('all');
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterDay, setFilterDay] = useState('all');
-  const [showAllDates, setShowAllDates] = useState(true);
+  const [showAllDates, setShowAllDates] = useState(false);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set());
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   const mainHistoryTransactions = useMemo(() => {
     return transactions.filter(tx => 
@@ -73,16 +73,18 @@ const HistoryPage: React.FC = () => {
       if (filterType !== 'all' && tx.type !== filterType) return false;
       if (filterName !== 'all' && tx.person !== filterName) return false;
 
+      const txDate = new Date(tx.date);
       if (!showAllDates) {
-        const txDate = new Date(tx.date);
         const currentDate = new Date();
-        return txDate.getFullYear() === currentDate.getFullYear() &&
-               txDate.getMonth() === currentDate.getMonth() &&
-               txDate.getDate() === currentDate.getDate();
+        if (txDate.getFullYear() !== currentDate.getFullYear() ||
+            txDate.getMonth() !== currentDate.getMonth() ||
+            txDate.getDate() !== currentDate.getDate()) {
+          return false;
+        }
       } else {
-        if (filterYear !== 'all' && new Date(tx.date).getFullYear().toString() !== filterYear) return false;
-        if (filterMonth !== 'all' && (new Date(tx.date).getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
-        if (filterDay !== 'all' && new Date(tx.date).getDate().toString().padStart(2, '0') !== filterDay) return false;
+        if (filterYear !== 'all' && txDate.getFullYear().toString() !== filterYear) return false;
+        if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
+        if (filterDay !== 'all' && txDate.getDate().toString().padStart(2, '0') !== filterDay) return false;
       }
       
       const searchLower = searchTerm.toLowerCase();
@@ -107,7 +109,7 @@ const HistoryPage: React.FC = () => {
     setFilterYear('all');
     setFilterMonth('all');
     setFilterDay('all');
-    setShowAllDates(true);
+    setShowAllDates(false);
   }, []);
 
   useEffect(() => {
@@ -260,8 +262,8 @@ const HistoryPage: React.FC = () => {
                 <select value={filterName} onChange={e => setFilterName(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Names</option>{personNames.map(name => <option key={name} value={name}>{name}</option>)}</select>
             </div>
             <div className="mb-4 flex items-center gap-4">
-                <button onClick={() => setShowAllDates(!showAllDates)} className={`px-4 py-2 rounded-md font-medium transition-colors text-sm ${showAllDates ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                    {showAllDates ? 'Show All Dates' : 'Show Today Only'}
+                <button onClick={() => setShowAllDates(!showAllDates)} className={`px-4 py-2 rounded-md font-medium transition-colors text-sm ${!showAllDates ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    {showAllDates ? 'Show Today Only' : 'Show All Dates'}
                 </button>
                 {!showAllDates && <span className="text-sm text-blue-600 font-medium">Showing: {new Date().toLocaleDateString('en-IN')}</span>}
             </div>

@@ -108,11 +108,11 @@ const CompanyHistoryPage: React.FC = () => {
         years.add(d.getFullYear().toString());
         if (showAllDates) {
             if (filterYear === 'all' || d.getFullYear().toString() === filterYear) {
-                months.add((d.getMonth() + 1).toString().padStart(2, '0'));
+                months.add((d.getMonth() + 1).toString());
             }
             if ((filterYear === 'all' || d.getFullYear().toString() === filterYear) && 
-                (filterMonth === 'all' || (d.getMonth() + 1).toString().padStart(2, '0') === filterMonth)) {
-                days.add(d.getDate().toString().padStart(2, '0'));
+                (filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth)) {
+                days.add(d.getDate().toString());
             }
         }
     });
@@ -158,8 +158,8 @@ const CompanyHistoryPage: React.FC = () => {
           if (txDate.getFullYear() !== currentDate.getFullYear() || txDate.getMonth() !== currentDate.getMonth() || txDate.getDate() !== currentDate.getDate()) return false;
         } else {
           if (filterYear !== 'all' && txDate.getFullYear().toString() !== filterYear) return false;
-          if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
-          if (filterDay !== 'all' && txDate.getDate().toString().padStart(2, '0') !== filterDay) return false;
+          if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString() !== filterMonth) return false;
+          if (filterDay !== 'all' && txDate.getDate().toString() !== filterDay) return false;
         }
         if (filterType !== 'all' && tx.type !== filterType) return false;
         const searchLower = searchTerm.toLowerCase();
@@ -279,8 +279,8 @@ const CompanyHistoryPage: React.FC = () => {
       alert('Balance forwarded successfully!');
       
       const year = creditDate.getFullYear().toString();
-      const month = (creditDate.getMonth() + 1).toString().padStart(2, '0');
-      const day = creditDate.getDate().toString().padStart(2, '0');
+      const month = (creditDate.getMonth() + 1).toString();
+      const day = creditDate.getDate().toString();
 
       const newSearchParams = new URLSearchParams();
       newSearchParams.set('year', year);
@@ -384,8 +384,8 @@ const CompanyHistoryPage: React.FC = () => {
             onClick={() => setShowAllDates(!showAllDates)}
             className={`px-4 py-2 rounded-md font-medium transition-colors ${
               showAllDates 
-                ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                : 'bg-blue-600 text-white hover:bg-blue-700' 
             }`}
           >
             {showAllDates ? 'Show Today Only' : 'Show All Dates'}
@@ -400,7 +400,7 @@ const CompanyHistoryPage: React.FC = () => {
         {showAllDates && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterYear} onChange={e => {setFilterYear(e.target.value); setFilterMonth('all'); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Years</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select></div>
-              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
+              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{new Date(2000, parseInt(m) - 1).toLocaleString('default', { month: 'long' })}</option>)}</select></div>
               <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterDay} onChange={e => setFilterDay(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Days</option>{days.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
               <div className='relative'><FilterIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
           </div>
