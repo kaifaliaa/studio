@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { Transaction, NoteCounts } from '../types';
 import { COMPANY_NAMES as defaultCompanyNames, LOCATIONS, DENOMINATIONS } from '../constants';
 import { googleSheets } from '../services/googleSheets';
@@ -11,6 +11,7 @@ interface AppContextType {
   vault: NoteCounts;
   companyNames: string[];
   locations: string[];
+  personNames: string[];
   addTransaction: (newTransaction: Omit<Transaction, 'id'> & { manualDate?: string }) => Promise<void>;
   updateTransaction: (updatedTransaction: Transaction & { manualDate?: string }) => Promise<void>;
   deleteTransactionsByIds: (ids: string[]) => Promise<void>;
@@ -57,6 +58,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const simplifiedCurrentUserName = currentUserName.replace('@gmail.com', '');
     return txRecordedBy.toLowerCase() === simplifiedCurrentUserName.toLowerCase();
   });
+
+  const personNames = useMemo(() => {
+    const names = new Set(transactions.map(tx => tx.person).filter(Boolean) as string[]);
+    return Array.from(names).sort();
+  }, [transactions]);
 
   const recalculateVault = useCallback((transactions: Transaction[], currentUserName?: string) => {
     const newVault = initializeVault();
@@ -354,6 +360,7 @@ useEffect(() => {
     vault,
     companyNames,
     locations: LOCATIONS,
+    personNames,
     addTransaction,
     updateTransaction,
     deleteTransactionsByIds,

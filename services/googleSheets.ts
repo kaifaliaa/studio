@@ -19,8 +19,7 @@ const transactionToData = (transaction: Transaction) => {
     recordedBy: transaction.recordedBy,
     amount: transaction.amount,
     notes: transaction.notes,
-    breakdown: JSON.stringify(transaction.breakdown),
-    timestamp: new Date().toISOString()
+    breakdown: JSON.stringify(transaction.breakdown)
   };
 };
 
