@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
+import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 
 const ReportPage: React.FC = () => {
     const { companyName } = useParams<{ companyName: string }>();
@@ -56,10 +57,10 @@ const ReportPage: React.FC = () => {
                 filtered = filtered.filter(tx => new Date(tx.date).getFullYear().toString() === filterYear);
             }
             if (filterMonth !== 'all') {
-                filtered = filtered.filter(tx => (new Date(tx.date).getMonth() + 1).toString().padStart(2, '0') === filterMonth);
+                filtered = filtered.filter(tx => (new Date(tx.date).getMonth() + 1).toString() === filterMonth);
             }
             if (filterDay !== 'all') {
-                filtered = filtered.filter(tx => new Date(tx.date).getDate().toString().padStart(2, '0') === filterDay);
+                filtered = filtered.filter(tx => new Date(tx.date).getDate().toString() === filterDay);
             }
         }
         
@@ -120,7 +121,10 @@ const ReportPage: React.FC = () => {
             parts.push(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`);
         } else {
             if (filterYear !== 'all') parts.push(`Year: ${filterYear}`);
-            if (filterMonth !== 'all') parts.push(`Month: ${filterMonth}`);
+            if (filterMonth !== 'all') {
+                const monthName = new Date(2000, parseInt(filterMonth) - 1).toLocaleString('default', { month: 'long' });
+                parts.push(`Month: ${monthName}`);
+            }
             if (filterDay !== 'all') parts.push(`Day: ${filterDay}`);
         }
         if (locationFilter && locationFilter !== 'all') parts.push(`Location: ${locationFilter}`);
@@ -134,7 +138,7 @@ const ReportPage: React.FC = () => {
             <div className="text-center p-8">
                 <p>No transactions found for {decodedCompanyName} matching the applied filters.</p>
                 <p className="text-sm text-gray-600 mt-2">Filters applied: {getFilterDescription()}</p>
-                <Link to={`/company/${companyName}`} className="text-blue-600 hover:underline mt-4 inline-block">Go Back</Link>
+                <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="text-blue-600 hover:underline mt-4 inline-block no-print">Go Back</Link>
             </div>
         );
     }
@@ -148,6 +152,11 @@ const ReportPage: React.FC = () => {
 
     return (
         <div className="bg-white p-2 sm:p-4 md:p-6 lg:p-8 print-container min-w-0">
+             <div className="no-print mb-4">
+                <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
+                    <ArrowLeftIcon className="h-5 w-5"/><span>Back to History</span>
+                </Link>
+             </div>
              <div className="text-center mb-2 sm:mb-4">
                  <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-black uppercase">Report for {decodedCompanyName}</h1>
                  <p className="text-xs sm:text-sm text-gray-600">Generated on: {formattedDate(generationDate)}</p>
@@ -170,7 +179,7 @@ const ReportPage: React.FC = () => {
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">1st</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">2nd</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">3rd</th>
+                            <th className="border border-black p-1 sm:p-2 text-xs sm_text-sm">3rd</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
                         </tr>
                     </thead>
