@@ -3,7 +3,7 @@ import { Transaction } from '../types';
 
 // Configuration for Google Apps Script Web App
 const GOOGLE_APPS_SCRIPT_CONFIG = {
-  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwf7p8I32uclFZtgcdpGsRd9qshpHiehPTiDdIMG3U5dieymkCQyKWCkRendyIG5l33/exec',
+  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxoWEqGrkC8SAqGW2DJOvujo2VdQL6OIkyzfGeXAXHXeAEUzhXfsaUibm9L4UAEglnE/exec',
 };
 
 // Convert transaction to the format expected by Google Apps Script
