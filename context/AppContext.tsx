@@ -200,7 +200,7 @@ useEffect(() => {
     const transactionDate = newTransactionData.manualDate || newTransactionData.date;
     const newTransaction: Transaction = {
       ...newTransactionData,
-      id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `txn-${allTransactions.length + 1}`,
       date: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString(),
     };
 
@@ -242,7 +242,7 @@ useEffect(() => {
         console.error(`❌ Failed to save or sync transaction ${newTransaction.id}:`, error);
       }
     })();
-  }, [googleSheetsConnected]);
+  }, [googleSheetsConnected, allTransactions.length]);
 
   const updateTransaction = useCallback(async (updatedTransaction: Transaction & { manualDate?: string }) => {
     // UI Update First

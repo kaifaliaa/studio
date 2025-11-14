@@ -89,7 +89,7 @@ const HistoryPage: React.FC = () => {
       
       const searchLower = searchTerm.toLowerCase();
       if (searchTerm && !(
-          tx.person?.toLowerCase().includes(searchLower) ||
+        (typeof tx.person === 'string' && tx.person.toLowerCase().includes(searchLower)) ||
           tx.company?.toLowerCase().includes(searchLower) ||
           tx.amount.toString().includes(searchLower) ||
           tx.location.toLowerCase().includes(searchLower) ||

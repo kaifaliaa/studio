@@ -164,9 +164,9 @@ const CompanyHistoryPage: React.FC = () => {
         if (filterType !== 'all' && tx.type !== filterType) return false;
         const searchLower = searchTerm.toLowerCase();
         if (searchTerm.trim() && !(
-            tx.person?.toLowerCase().includes(searchLower) ||
-            tx.amount.toString().includes(searchLower) ||
-            tx.paymentMethod.toLowerCase().includes(searchLower)
+          (typeof tx.person === 'string' && tx.person.toLowerCase().includes(searchLower)) ||
+          tx.amount.toString().includes(searchLower) ||
+          tx.paymentMethod.toLowerCase().includes(searchLower)
         )) return false;
         return true;
     });

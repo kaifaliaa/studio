@@ -42,11 +42,13 @@ const EditTransactionPage: React.FC = () => {
             setRecordedBy(txToEdit.recordedBy);
             setTransactionType(txToEdit.type);
             setAmount(txToEdit.amount);
-            if (txToEdit.manualDate) {
-                setManualDate(new Date(txToEdit.manualDate).toISOString().slice(0, 16));
-            } else if (txToEdit.timestamp) {
-                setManualDate(new Date(txToEdit.timestamp.seconds * 1000).toISOString().slice(0,16));
-            }
+
+            // Correctly format the date for the datetime-local input
+            const dateToUse = txToEdit.manualDate || txToEdit.date || (txToEdit.timestamp ? new Date(txToEdit.timestamp.seconds * 1000) : new Date());
+            const localDate = new Date(dateToUse);
+            const localDateString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            setManualDate(localDateString);
+
             if (txToEdit.paymentMethod === 'cash' && txToEdit.breakdown) {
                 setBreakdown(txToEdit.breakdown);
             }
