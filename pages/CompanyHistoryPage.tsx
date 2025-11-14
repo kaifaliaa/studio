@@ -27,7 +27,7 @@ const TransactionItem: React.FC<{
 
   const formattedDate = new Date(date).toLocaleString('en-IN', {
     day: '2-digit', month: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true,
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
   });
 
   return (
@@ -78,13 +78,13 @@ const CompanyHistoryPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [filterYear, setFilterYear] = useState(searchParams.get('year') || 'all');
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') || 'all');
   const [filterDay, setFilterDay] = useState(searchParams.get('day') || 'all');
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState(searchParams.get('type') || 'all');
   const [showAllDates, setShowAllDates] = useState(searchParams.get('showAllDates') === 'true');
 
   const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
@@ -108,11 +108,11 @@ const CompanyHistoryPage: React.FC = () => {
         years.add(d.getFullYear().toString());
         if (showAllDates) {
             if (filterYear === 'all' || d.getFullYear().toString() === filterYear) {
-                months.add((d.getMonth() + 1).toString().padStart(2, '0'));
+                months.add((d.getMonth() + 1).toString());
             }
             if ((filterYear === 'all' || d.getFullYear().toString() === filterYear) && 
-                (filterMonth === 'all' || (d.getMonth() + 1).toString().padStart(2, '0') === filterMonth)) {
-                days.add(d.getDate().toString().padStart(2, '0'));
+                (filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth)) {
+                days.add(d.getDate().toString());
             }
         }
     });
@@ -126,6 +126,11 @@ const CompanyHistoryPage: React.FC = () => {
    useEffect(() => {
     setSelectedIds([]);
     const params = new URLSearchParams(searchParams);
+    if (searchTerm.trim()) {
+      params.set('search', searchTerm.trim());
+    } else {
+      params.delete('search');
+    }
     if (showAllDates) {
       params.set('showAllDates', 'true');
       params.set('year', filterYear);
@@ -137,8 +142,13 @@ const CompanyHistoryPage: React.FC = () => {
       params.delete('month');
       params.delete('day');
     }
+    if (filterType !== 'all') {
+      params.set('type', filterType);
+    } else {
+      params.delete('type');
+    }
     setSearchParams(params, { replace: true });
-  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, searchParams, setSearchParams, transactions]);
+  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, setSearchParams]);
 
   const filteredTransactions = useMemo(() => {
     return companyTransactions.filter(tx => {
@@ -148,12 +158,12 @@ const CompanyHistoryPage: React.FC = () => {
           if (txDate.getFullYear() !== currentDate.getFullYear() || txDate.getMonth() !== currentDate.getMonth() || txDate.getDate() !== currentDate.getDate()) return false;
         } else {
           if (filterYear !== 'all' && txDate.getFullYear().toString() !== filterYear) return false;
-          if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
-          if (filterDay !== 'all' && txDate.getDate().toString().padStart(2, '0') !== filterDay) return false;
+          if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString() !== filterMonth) return false;
+          if (filterDay !== 'all' && txDate.getDate().toString() !== filterDay) return false;
         }
         if (filterType !== 'all' && tx.type !== filterType) return false;
         const searchLower = searchTerm.toLowerCase();
-        if (searchTerm && !(
+        if (searchTerm.trim() && !(
             tx.person?.toLowerCase().includes(searchLower) ||
             tx.amount.toString().includes(searchLower) ||
             tx.paymentMethod.toLowerCase().includes(searchLower)
@@ -221,11 +231,6 @@ const CompanyHistoryPage: React.FC = () => {
       forwardFromDate.setHours(23, 59, 59, 999);
     }
 
-    if (filteredNetBalance <= 0) {
-      alert("There is no positive balance to forward.");
-      return;
-    }
-
     if (!user) {
       alert("You must be logged in to forward an entry.");
       return;
@@ -235,10 +240,10 @@ const CompanyHistoryPage: React.FC = () => {
     const debitDate = new Date(forwardFromDate);
     const creditDate = new Date(debitDate);
     creditDate.setDate(creditDate.getDate() + 1);
-    creditDate.setHours(0, 0, 0, 0);
+    creditDate.setHours(12, 0, 0, 0);
 
     const debitTransaction = {
-      amount: forwardAmount,
+      amount: Math.abs(forwardAmount),
       company: decodedCompanyName,
       date: debitDate.toISOString(),
       location: locationFilter || companyLocation,
@@ -250,7 +255,7 @@ const CompanyHistoryPage: React.FC = () => {
     };
 
     const creditTransaction = {
-      amount: forwardAmount,
+      amount: Math.abs(forwardAmount),
       company: decodedCompanyName,
       date: creditDate.toISOString(),
       location: locationFilter || companyLocation,
@@ -262,13 +267,20 @@ const CompanyHistoryPage: React.FC = () => {
     };
 
     try {
-      await addTransaction(debitTransaction as Omit<Transaction, 'id'>);
-      await addTransaction(creditTransaction as Omit<Transaction, 'id'>);
+      if (forwardAmount > 0) {
+        await addTransaction(debitTransaction as Omit<Transaction, 'id'>);
+        await addTransaction(creditTransaction as Omit<Transaction, 'id'>);
+      } else {
+        // If balance is negative, we credit the current day and debit the next.
+        await addTransaction({ ...debitTransaction, type: 'credit', person: 'Negative Balance Forwarded' } as Omit<Transaction, 'id'>);
+        await addTransaction({ ...creditTransaction, type: 'debit', person: 'Negative Balance Received' } as Omit<Transaction, 'id'>);
+      }
+      
       alert('Balance forwarded successfully!');
       
       const year = creditDate.getFullYear().toString();
-      const month = (creditDate.getMonth() + 1).toString().padStart(2, '0');
-      const day = creditDate.getDate().toString().padStart(2, '0');
+      const month = (creditDate.getMonth() + 1).toString();
+      const day = creditDate.getDate().toString();
 
       const newSearchParams = new URLSearchParams();
       newSearchParams.set('year', year);
@@ -307,8 +319,6 @@ const CompanyHistoryPage: React.FC = () => {
       }
   };
 
-  const isForwardDisabled = filteredNetBalance <= 0;
-
   if (!decodedCompanyName) return <div className="text-center p-8">Company name not found.</div>;
 
   return (
@@ -339,7 +349,7 @@ const CompanyHistoryPage: React.FC = () => {
               <button onClick={handleUpi} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
                   <span className="font-bold">₹</span> Add UPI
               </button>
-              <button onClick={handleForwardEntry} disabled={isForwardDisabled} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={handleForwardEntry} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600">
                   Forward Entry
               </button>
               <button onClick={handleNewDebit} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-red-600 text-white hover:bg-red-700">
@@ -367,15 +377,15 @@ const CompanyHistoryPage: React.FC = () => {
 
       {/* Filter Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-6 sticky top-[65px] z-5 no-print">
-        <input type="text" placeholder="Search this company's transactions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
+        <input type="text" placeholder="Search by person, amount, or payment method..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
         
         <div className="mb-4 flex items-center gap-4">
           <button
             onClick={() => setShowAllDates(!showAllDates)}
             className={`px-4 py-2 rounded-md font-medium transition-colors ${
               showAllDates 
-                ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                : 'bg-blue-600 text-white hover:bg-blue-700' 
             }`}
           >
             {showAllDates ? 'Show Today Only' : 'Show All Dates'}
@@ -390,7 +400,7 @@ const CompanyHistoryPage: React.FC = () => {
         {showAllDates && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterYear} onChange={e => {setFilterYear(e.target.value); setFilterMonth('all'); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Years</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select></div>
-              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
+              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{new Date(2000, parseInt(m) - 1).toLocaleString('default', { month: 'long' })}</option>)}</select></div>
               <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterDay} onChange={e => setFilterDay(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Days</option>{days.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
               <div className='relative'><FilterIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
           </div>

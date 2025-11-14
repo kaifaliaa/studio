@@ -26,6 +26,7 @@ const EditTransactionPage: React.FC = () => {
     const [transactionType, setTransactionType] = useState<TransactionType>('credit');
     const [amount, setAmount] = useState<number>(0);
     const [breakdown, setBreakdown] = useState<NoteCounts>({});
+    const [manualDate, setManualDate] = useState('');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,11 @@ const EditTransactionPage: React.FC = () => {
             setRecordedBy(txToEdit.recordedBy);
             setTransactionType(txToEdit.type);
             setAmount(txToEdit.amount);
+            if (txToEdit.manualDate) {
+                setManualDate(new Date(txToEdit.manualDate).toISOString().slice(0, 16));
+            } else if (txToEdit.timestamp) {
+                setManualDate(new Date(txToEdit.timestamp.seconds * 1000).toISOString().slice(0,16));
+            }
             if (txToEdit.paymentMethod === 'cash' && txToEdit.breakdown) {
                 setBreakdown(txToEdit.breakdown);
             }
@@ -77,6 +83,7 @@ const EditTransactionPage: React.FC = () => {
             type: transactionType,
             amount: totalAmount,
             breakdown: transaction.paymentMethod === 'cash' ? breakdown : {},
+            manualDate,
         };
 
         try {
@@ -146,6 +153,11 @@ const EditTransactionPage: React.FC = () => {
                                 {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="manualDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date and Time</label>
+                        <input type="datetime-local" name="manualDate" id="manualDate" value={manualDate} onChange={e => setManualDate(e.target.value)} className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
                     </div>
 
                     <hr className="border-gray-200 dark:border-gray-700" />

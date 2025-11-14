@@ -26,11 +26,14 @@ type SummaryAccumulator = { [key: string]: SummaryAccumulatorValue };
 
 const SummaryPage: React.FC = () => {
   const { transactions, locations, companyNames, addCompany, deleteCompany } = useAppContext();
-  const [selectedLocation, setSelectedLocation] = useState('all');
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [newCompanyName, setNewCompanyName] = useState('');
   const [companyToDelete, setCompanyToDelete] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const sortedLocations = useMemo(() => [...locations].sort(), [locations]);
+  const activeLocation = selectedLocation ?? (sortedLocations.length > 0 ? sortedLocations[0] : null);
+
 
   const handleAddCompany = async () => {
     if (newCompanyName.trim() === '') return;
@@ -45,10 +48,7 @@ const SummaryPage: React.FC = () => {
   };
 
   const filteredSummaries = useMemo(() => {
-    const relevantTransactions =
-      selectedLocation === 'all'
-        ? transactions
-        : transactions.filter(tx => tx.location === selectedLocation);
+    const relevantTransactions = transactions.filter(tx => tx.location === activeLocation);
 
     const summariesByGroup = relevantTransactions.reduce<SummaryAccumulator>((acc, tx) => {
       const companyName = tx.company || 'NA';
@@ -78,16 +78,16 @@ const SummaryPage: React.FC = () => {
         ...summary,
         netBalance: summary.totalCredit - summary.totalDebit,
       }))
+      .filter(summary => summary.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [transactions, selectedLocation]);
+  }, [transactions, activeLocation, searchTerm]);
 
   const getCompanyUrl = (companyName: string) => {
     const encodedName = encodeURIComponent(companyName);
-    if (selectedLocation === 'all') {
-      return `/company/${encodedName}`;
-    } else {
-      return `/company/${encodedName}?location=${encodeURIComponent(selectedLocation)}`;
+    if (activeLocation) {
+        return `/company/${encodedName}?location=${encodeURIComponent(activeLocation)}`;
     }
+    return `/company/${encodedName}`;
   };
 
   return (
@@ -141,18 +141,8 @@ const SummaryPage: React.FC = () => {
       </div>
         
       <div className="flex flex-wrap gap-2 mb-6">
-        <button
-          onClick={() => setSelectedLocation('all')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              selectedLocation === 'all'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-          }`}
-        >
-          All Locations
-        </button>
         {sortedLocations.map(location => {
-          const isActive = selectedLocation === location;
+          const isActive = activeLocation === location;
           return (
             <button
               key={location}
@@ -167,6 +157,16 @@ const SummaryPage: React.FC = () => {
             </button>
           );
         })}
+      </div>
+
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search Company Name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+        />
       </div>
 
       {/* Table for larger screens */}

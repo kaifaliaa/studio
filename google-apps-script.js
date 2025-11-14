@@ -14,7 +14,7 @@ const SHEET_NAME = 'Transactions'; // Name of the sheet tab
 const HEADERS = [
   'ID', 'Date', 'Type', 'Payment Method', 'Company', 
   'Person', 'Location', 'Recorded By', 'Amount', 
-  'Notes', 'Breakdown', 'Timestamp'
+  'Notes', 'Breakdown'
 ];
 
 /**
@@ -193,11 +193,21 @@ function initializeSheet() {
 }
 
 /**
- * Add a new transaction
+ * Add a new transaction if it doesn't already exist
  */
 function addTransaction(transactionData) {
   const sheet = getOrCreateSheet();
+  const data = sheet.getDataRange().getValues();
   
+  // Check if transaction ID already exists
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === transactionData.id) {
+      Logger.log('Transaction with ID ' + transactionData.id + ' already exists. Skipping.');
+      return; // Exit if transaction is a duplicate
+    }
+  }
+  
+  // If no duplicate is found, add the new transaction
   const row = [
     transactionData.id,
     transactionData.date,
@@ -209,11 +219,11 @@ function addTransaction(transactionData) {
     transactionData.recordedBy,
     transactionData.amount,
     transactionData.notes,
-    transactionData.breakdown,
-    transactionData.timestamp
+    transactionData.breakdown
   ];
   
   sheet.appendRow(row);
+  Logger.log('Transaction with ID ' + transactionData.id + ' added successfully.');
 }
 
 /**
@@ -243,8 +253,7 @@ function updateTransaction(transactionData) {
           transactionData.recordedBy || '',
           transactionData.amount || 0,
           transactionData.notes || '',
-          transactionData.breakdown || '',
-          transactionData.timestamp || new Date().toISOString()
+          transactionData.breakdown || ''
         ];
         
         Logger.log('Updating row with: ' + JSON.stringify(row));
@@ -329,8 +338,7 @@ function getAllTransactions(recordedByFilter) {
         recordedBy: row[7],
         amount: row[8],
         notes: row[9],
-        breakdown: row[10],
-        timestamp: row[11]
+        breakdown: row[10]
       });
     }
     
@@ -376,8 +384,7 @@ function testScript() {
     recordedBy: 'Script Test',
     amount: 1000,
     notes: 'Test transaction',
-    breakdown: JSON.stringify({500: 2}),
-    timestamp: new Date().toISOString()
+    breakdown: JSON.stringify({500: 2})
   };
   
   addTransaction(testTransaction);

@@ -1,51 +1,50 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
+import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
 
 const ReportPage: React.FC = () => {
     const { companyName } = useParams<{ companyName: string }>();
     const { transactions } = useAppContext();
     const [generationDate] = useState(new Date());
     
-    // Get filter parameters from URL - same as CompanyHistoryPage
-    const [searchParams] = useState(() => new URLSearchParams(window.location.search));
-    const locationFilter = searchParams.get('location') || null;
+    const [searchParams] = useSearchParams();
+    const locationFilter = searchParams.get('location');
     const filterType = searchParams.get('type') || 'all';
-    const filterName = searchParams.get('name') || 'all';
     const searchTerm = searchParams.get('search') || '';
-    
-    // Check if we should show current date only (default behavior)
     const showAllDates = searchParams.get('showAllDates') === 'true';
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear().toString();
-    const currentMonth = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-    const currentDay = currentDate.getDate().toString().padStart(2, '0');
-    
-    // Get manual date filters from URL if showing all dates
-    const filterYear = showAllDates ? (searchParams.get('year') || 'all') : currentYear;
-    const filterMonth = showAllDates ? (searchParams.get('month') || 'all') : currentMonth;
-    const filterDay = showAllDates ? (searchParams.get('day') || 'all') : currentDay;
+    const filterYear = searchParams.get('year') || 'all';
+    const filterMonth = searchParams.get('month') || 'all';
+    const filterDay = searchParams.get('day') || 'all';
 
     const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
 
     useEffect(() => {
-        // Automatically trigger print dialog when component mounts
-        const timer = setTimeout(() => window.print(), 500);
-        return () => clearTimeout(timer);
-    }, []);
+        const originalTitle = document.title;
+        const today = new Date();
+        const dateString = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+        document.title = `${decodedCompanyName}_Report_${dateString}`;
+        
+        const timer = setTimeout(() => {
+            window.print();
+            document.title = originalTitle;
+        }, 500);
+        
+        return () => {
+            clearTimeout(timer);
+            document.title = originalTitle;
+        };
+    }, [decodedCompanyName]);
     
     const companyTransactions = useMemo(() => {
         let filtered = transactions.filter(tx => (tx.company || 'NA') === decodedCompanyName);
         
-        // Apply location filter if specified
         if (locationFilter && locationFilter !== 'all') {
             filtered = filtered.filter(tx => tx.location === locationFilter);
         }
         
-        // Apply date filters - default to current date unless showAllDates is true
         if (!showAllDates) {
-            // Show current date only - same logic as CompanyHistoryPage
             const today = new Date();
             filtered = filtered.filter(tx => {
                 const txDate = new Date(tx.date);
@@ -54,29 +53,21 @@ const ReportPage: React.FC = () => {
                        txDate.getDate() === today.getDate();
             });
         } else {
-            // Apply manual date filters only if showAllDates is true
             if (filterYear !== 'all') {
                 filtered = filtered.filter(tx => new Date(tx.date).getFullYear().toString() === filterYear);
             }
             if (filterMonth !== 'all') {
-                filtered = filtered.filter(tx => (new Date(tx.date).getMonth() + 1).toString().padStart(2, '0') === filterMonth);
+                filtered = filtered.filter(tx => (new Date(tx.date).getMonth() + 1).toString() === filterMonth);
             }
             if (filterDay !== 'all') {
-                filtered = filtered.filter(tx => new Date(tx.date).getDate().toString().padStart(2, '0') === filterDay);
+                filtered = filtered.filter(tx => new Date(tx.date).getDate().toString() === filterDay);
             }
         }
         
-        // Apply transaction type filter
         if (filterType !== 'all') {
             filtered = filtered.filter(tx => tx.type === filterType);
         }
         
-        // Apply person name filter (only if provided in URL)
-        if (filterName && filterName !== 'all') {
-            filtered = filtered.filter(tx => (tx.person || 'N/A') === filterName);
-        }
-        
-        // Apply search filter - same logic as CompanyHistoryPage
         if (searchTerm.trim()) {
             const searchLower = searchTerm.toLowerCase();
             filtered = filtered.filter(tx => 
@@ -87,7 +78,7 @@ const ReportPage: React.FC = () => {
         }
         
         return filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [transactions, decodedCompanyName, locationFilter, filterType, filterName, showAllDates, filterYear, filterMonth, filterDay, searchTerm]);
+    }, [transactions, decodedCompanyName, locationFilter, filterType, showAllDates, filterYear, filterMonth, filterDay, searchTerm]);
 
     const reportData = useMemo(() => {
         if (!companyTransactions.length) return null;
@@ -124,19 +115,20 @@ const ReportPage: React.FC = () => {
         hour: '2-digit', minute: '2-digit', hour12: true,
     });
 
-    // Create a filter description for the report header
     const getFilterDescription = () => {
         const parts = [];
         if (!showAllDates) {
-            parts.push(`Date: ${currentDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`);
+            parts.push(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`);
         } else {
             if (filterYear !== 'all') parts.push(`Year: ${filterYear}`);
-            if (filterMonth !== 'all') parts.push(`Month: ${filterMonth}`);
+            if (filterMonth !== 'all') {
+                const monthName = new Date(2000, parseInt(filterMonth) - 1).toLocaleString('default', { month: 'long' });
+                parts.push(`Month: ${monthName}`);
+            }
             if (filterDay !== 'all') parts.push(`Day: ${filterDay}`);
         }
         if (locationFilter && locationFilter !== 'all') parts.push(`Location: ${locationFilter}`);
         if (filterType !== 'all') parts.push(`Type: ${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`);
-        if (filterName !== 'all') parts.push(`Person: ${filterName}`);
         if (searchTerm.trim()) parts.push(`Search: "${searchTerm.trim()}"`);
         return parts.length > 0 ? parts.join(' | ') : 'All transactions';
     };
@@ -146,7 +138,7 @@ const ReportPage: React.FC = () => {
             <div className="text-center p-8">
                 <p>No transactions found for {decodedCompanyName} matching the applied filters.</p>
                 <p className="text-sm text-gray-600 mt-2">Filters applied: {getFilterDescription()}</p>
-                <Link to={`/company/${companyName}`} className="text-blue-600 hover:underline mt-4 inline-block">Go Back</Link>
+                <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="text-blue-600 hover:underline mt-4 inline-block no-print">Go Back</Link>
             </div>
         );
     }
@@ -160,6 +152,11 @@ const ReportPage: React.FC = () => {
 
     return (
         <div className="bg-white p-2 sm:p-4 md:p-6 lg:p-8 print-container min-w-0">
+             <div className="no-print mb-4">
+                <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
+                    <ArrowLeftIcon className="h-5 w-5"/><span>Back to History</span>
+                </Link>
+             </div>
              <div className="text-center mb-2 sm:mb-4">
                  <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-black uppercase">Report for {decodedCompanyName}</h1>
                  <p className="text-xs sm:text-sm text-gray-600">Generated on: {formattedDate(generationDate)}</p>
@@ -182,7 +179,7 @@ const ReportPage: React.FC = () => {
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">1st</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">2nd</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">3rd</th>
+                            <th className="border border-black p-1 sm:p-2 text-xs sm_text-sm">3rd</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
                         </tr>
                     </thead>
@@ -190,20 +187,20 @@ const ReportPage: React.FC = () => {
                         {reportData.customers.map(customer => (
                             <tr key={customer.name}>
                                 <td className="border border-black p-1 sm:p-2 font-semibold text-xs sm:text-sm">{customer.name}</td>
-                                {[0, 1, 2, 3].map(i => <td key={`cash-${i}`} className="border border-black p-1 sm:p-2 text-right text-xs sm:text-sm">{customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}</td>)}
-                                {[0, 1, 2, 3].map(i => <td key={`upi-${i}`} className="border border-black p-1 sm:p-2 text-right text-xs sm:text-sm">{customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}</td>)}
+                                {[0, 1, 2, 3].map(i => <td key={`cash-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}</td>)}
+                                {[0, 1, 2, 3].map(i => <td key={`upi-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}</td>)}
                                 <td className="border border-black p-1 sm:p-2 text-right font-bold text-xs sm:text-sm">{currencyFormatter.format(customer.total)}</td>
                             </tr>
                         ))}
                     </tbody>
                     <tfoot className="font-bold">
-                        {/* Total Credit Row */}
+                        
                         <tr>
                             <td colSpan={9} className="border-t-2 border-black p-1 sm:p-2 text-right text-xs sm:text-sm">Total Credit</td>
                             <td className="border-t-2 border-black border-l border-black p-1 sm:p-2 text-right bg-green-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalCredit)}</td>
                         </tr>
 
-                        {/* Entry (Debit) Row */}
+                       
                         <tr>
                             <td className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Entry</td>
                             {[0, 1, 2, 3].map(i => (
@@ -211,12 +208,12 @@ const ReportPage: React.FC = () => {
                                     {reportData.debitAmounts[i] ? currencyFormatter.format(reportData.debitAmounts[i]) : ''}
                                 </td>
                             ))}
-                            {/* Empty cells to push the total to the end */}
+                            
                             <td colSpan={4} className="border-y border-r border-black p-1 sm:p-2"></td>
                             <td className="border border-black p-1 sm:p-2 text-right bg-red-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalDebit)}</td>
                         </tr>
 
-                        {/* Closing Balance Row */}
+                       
                         <tr>
                             <td colSpan={9} className="p-1 sm:p-2 text-right text-xs sm:text-sm">Closing Balance</td>
                             <td className={`border border-black p-1 sm:p-2 text-right text-xs sm:text-sm ${
@@ -231,10 +228,7 @@ const ReportPage: React.FC = () => {
                 </table>
             </div>
 
-             <div className="mt-4 sm:mt-8 text-center no-print">
-                <Link to={`/company/${companyName}`} className="px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm bg-gray-200 rounded-md hover:bg-gray-300">Go Back</Link>
-                <button onClick={() => window.print()} className="ml-2 sm:ml-4 px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">Print Again</button>
-            </div>
+            
         </div>
     );
 };

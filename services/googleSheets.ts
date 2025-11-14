@@ -3,7 +3,7 @@ import { Transaction } from '../types';
 
 // Configuration for Google Apps Script Web App
 const GOOGLE_APPS_SCRIPT_CONFIG = {
-  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwf7p8I32uclFZtgcdpGsRd9qshpHiehPTiDdIMG3U5dieymkCQyKWCkRendyIG5l33/exec',
+  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxoWEqGrkC8SAqGW2DJOvujo2VdQL6OIkyzfGeXAXHXeAEUzhXfsaUibm9L4UAEglnE/exec',
 };
 
 // Convert transaction to the format expected by Google Apps Script
@@ -19,8 +19,7 @@ const transactionToData = (transaction: Transaction) => {
     recordedBy: transaction.recordedBy,
     amount: transaction.amount,
     notes: transaction.notes,
-    breakdown: JSON.stringify(transaction.breakdown),
-    timestamp: new Date().toISOString()
+    breakdown: JSON.stringify(transaction.breakdown)
   };
 };
 
@@ -28,6 +27,7 @@ const transactionToData = (transaction: Transaction) => {
 export class GoogleSheetsService {
   private static instance: GoogleSheetsService;
   private webAppUrl: string;
+  private isAddingTransaction = false;
 
   private constructor() {
     this.webAppUrl = GOOGLE_APPS_SCRIPT_CONFIG.webAppUrl;
@@ -98,6 +98,11 @@ export class GoogleSheetsService {
 
   // Add transaction to Google Sheets
   async addTransaction(transaction: Transaction): Promise<boolean> {
+    if (this.isAddingTransaction) {
+      console.warn('Already adding a transaction, skipping this one to prevent duplicates.');
+      return false;
+    }
+    this.isAddingTransaction = true;
     try {
       const data = transactionToData(transaction);
       console.log('Adding transaction to Google Sheets:', transaction.id, data);
@@ -133,6 +138,8 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Failed to add transaction to Google Sheets:', error);
       return false;
+    } finally {
+      this.isAddingTransaction = false;
     }
   }
 
