@@ -43,9 +43,24 @@ const initializeVault = (): NoteCounts => {
     return freshVault;
 };
 
+const getHighestTransactionId = (transactions: Transaction[]): number => {
+  let highestId = 0;
+  transactions.forEach(tx => {
+    const match = tx.id.match(/^txn-(\d+)$/);
+    if (match) {
+      const idNum = parseInt(match[1], 10);
+      if (idNum > highestId) {
+        highestId = idNum;
+      }
+    }
+  });
+  return highestId;
+};
+
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const { currentUser } = useAuth();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [nextTransactionId, setNextTransactionId] = useState(1);
   const [companyNames, setCompanyNames] = useState<string[]>(defaultCompanyNames);
   const [vault, setVault] = useState<NoteCounts>(() => initializeVault());
   const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
@@ -106,6 +121,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             const sheetTransactions = await googleSheets.getAllTransactions();
             console.log(`📥 Fetched ${sheetTransactions.length} transactions from sheets.`);
 
+            const allTx = [...localTransactions, ...sheetTransactions];
+            const highestId = getHighestTransactionId(allTx);
+            setNextTransactionId(highestId + 1);
+
             const sheetTxMap = new Map(sheetTransactions.map(tx => [tx.id, tx]));
 
             // Upload local transactions that are not in sheets
@@ -157,6 +176,8 @@ useEffect(() => {
             if (isConnected) {
                 setGoogleSheetsConnected(true);
                 const sheetTransactions = await googleSheets.getAllTransactions();
+                const highestId = getHighestTransactionId(sheetTransactions);
+                setNextTransactionId(highestId + 1);
                 const sortedTransactions = sheetTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                 
                 setAllTransactions(sortedTransactions);
@@ -174,6 +195,8 @@ useEffect(() => {
                 console.warn('❌ Google Sheets connection failed. Loading from local DB.');
                 setGoogleSheetsConnected(false);
                 const localTransactions = await localDB.getTransactions();
+                const highestId = getHighestTransactionId(localTransactions);
+                setNextTransactionId(highestId + 1);
                 const sortedTransactions = localTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                 setAllTransactions(sortedTransactions);
                 setSyncStatus('idle');
@@ -200,9 +223,10 @@ useEffect(() => {
     const transactionDate = newTransactionData.manualDate || newTransactionData.date;
     const newTransaction: Transaction = {
       ...newTransactionData,
-      id: `txn-${allTransactions.length + 1}`,
+      id: `txn-${nextTransactionId}`,
       date: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString(),
     };
+    setNextTransactionId(prevId => prevId + 1);
 
     // UI Update First
     setAllTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -242,7 +266,7 @@ useEffect(() => {
         console.error(`❌ Failed to save or sync transaction ${newTransaction.id}:`, error);
       }
     })();
-  }, [googleSheetsConnected, allTransactions.length]);
+  }, [googleSheetsConnected, nextTransactionId]);
 
   const updateTransaction = useCallback(async (updatedTransaction: Transaction & { manualDate?: string }) => {
     // UI Update First
