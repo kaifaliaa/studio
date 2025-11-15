@@ -13,6 +13,7 @@ interface AppContextType {
   locations: string[];
   personNames: string[];
   addTransaction: (newTransaction: Omit<Transaction, 'id'> & { manualDate?: string }) => Promise<void>;
+  addForwardEntry: (debitTransaction: Omit<Transaction, 'id'>, creditTransaction: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (updatedTransaction: Transaction & { manualDate?: string }) => Promise<void>;
   deleteTransactionsByIds: (ids: string[]) => Promise<void>;
   addCompany: (companyName: string) => Promise<void>;
@@ -46,7 +47,7 @@ const initializeVault = (): NoteCounts => {
 const getHighestTransactionId = (transactions: Transaction[]): number => {
   let highestId = 0;
   transactions.forEach(tx => {
-    const match = tx.id.match(/^txn-(\d+)$/);
+    const match = tx.id.match(/^txn[_-](\d+)$/);
     if (match) {
       const idNum = parseInt(match[1], 10);
       if (idNum > highestId) {
@@ -60,6 +61,7 @@ const getHighestTransactionId = (transactions: Transaction[]): number => {
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const { currentUser } = useAuth();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [nextTransactionId, setNextTransactionId] = useState(1);
   const [companyNames, setCompanyNames] = useState<string[]>(defaultCompanyNames);
   const [vault, setVault] = useState<NoteCounts>(() => initializeVault());
@@ -220,53 +222,134 @@ useEffect(() => {
   }, [companyNames]);
 
   const addTransaction = useCallback(async (newTransactionData: Omit<Transaction, 'id'> & { manualDate?: string }) => {
-    const transactionDate = newTransactionData.manualDate || newTransactionData.date;
-    const newTransaction: Transaction = {
-      ...newTransactionData,
-      id: `txn-${nextTransactionId}`,
-      date: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString(),
-    };
-    setNextTransactionId(prevId => prevId + 1);
-
-    // UI Update First
-    setAllTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    // Vault update
-    if (newTransaction.paymentMethod === 'cash' && newTransaction.breakdown) {
-        setVault(prevVault => {
-            const updatedVault = { ...prevVault };
-            for (const denom in newTransaction.breakdown) {
-                const denomNum = parseInt(denom, 10);
-                const count = newTransaction.breakdown[denomNum];
-                if (newTransaction.type === 'credit') updatedVault[denomNum] += count;
-                else if (newTransaction.type === 'debit') updatedVault[denomNum] -= count;
-            }
-            return updatedVault;
-        });
+    if (isSubmitting) {
+      console.warn("Submission in progress. Please wait.");
+      return;
     }
 
-    // Persist and Sync in Background
-    (async () => {
-      try {
-        await localDB.saveTransaction(newTransaction);
-        console.log(`✅ Transaction ${newTransaction.id} saved locally.`);
+    try {
+      setIsSubmitting(true);
 
-        if (googleSheetsConnected) {
-          setSyncStatus('syncing');
-          const success = await googleSheets.addTransaction(newTransaction);
-          if (success) {
-              setSyncStatus('success');
-              console.log(`✅ Transaction ${newTransaction.id} synced to Google Sheets.`);
-          } else {
-              setSyncStatus('error');
-              console.warn(`⚠️ Transaction ${newTransaction.id} might be a duplicate or failed to sync.`);
-          }
+      const lastId = await googleSheets.getLastTransactionId();
+      const highestLocalId = getHighestTransactionId(allTransactions);
+      let nextIdNumber = 1;
+
+      if (lastId) {
+        const match = lastId.match(/^txn[_-](\d+)$/);
+        if (match) {
+          const sheetIdNum = parseInt(match[1], 10);
+          nextIdNumber = Math.max(highestLocalId, sheetIdNum) + 1;
+        } else {
+          nextIdNumber = highestLocalId + 1;
         }
-      } catch (error) {
-        setSyncStatus('error');
-        console.error(`❌ Failed to save or sync transaction ${newTransaction.id}:`, error);
+      } else {
+        nextIdNumber = highestLocalId + 1;
       }
-    })();
-  }, [googleSheetsConnected, nextTransactionId]);
+
+      const transactionDate = newTransactionData.manualDate || newTransactionData.date;
+      const newTransaction: Transaction = {
+        ...newTransactionData,
+        id: `txn_${nextIdNumber}`,
+        date: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString(),
+      };
+
+      setAllTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+      if (newTransaction.paymentMethod === 'cash' && newTransaction.breakdown) {
+          setVault(prevVault => {
+              const updatedVault = { ...prevVault };
+              for (const denom in newTransaction.breakdown) {
+                  const denomNum = parseInt(denom, 10);
+                  const count = newTransaction.breakdown[denomNum];
+                  if (newTransaction.type === 'credit') updatedVault[denomNum] += count;
+                  else if (newTransaction.type === 'debit') updatedVault[denomNum] -= count;
+              }
+              return updatedVault;
+          });
+      }
+
+      (async () => {
+        try {
+          await localDB.saveTransaction(newTransaction);
+          if (googleSheetsConnected) {
+            setSyncStatus('syncing');
+            const success = await googleSheets.addTransaction(newTransaction);
+            setSyncStatus(success ? 'success' : 'error');
+          }
+        } catch (error) {
+          setSyncStatus('error');
+          console.error(`Failed to save or sync transaction ${newTransaction.id}:`, error);
+        }
+      })();
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      setSyncStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, allTransactions, googleSheetsConnected]);
+
+  const addForwardEntry = useCallback(async (debitTransaction: Omit<Transaction, 'id'>, creditTransaction: Omit<Transaction, 'id'>) => {
+    if (isSubmitting) {
+      console.warn("Submission in progress. Please wait.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const lastId = await googleSheets.getLastTransactionId();
+      const highestLocalId = getHighestTransactionId(allTransactions);
+      let nextIdNumber = 1;
+
+      if (lastId) {
+        const match = lastId.match(/^txn[_-](\d+)$/);
+        if (match) {
+          const sheetIdNum = parseInt(match[1], 10);
+          nextIdNumber = Math.max(highestLocalId, sheetIdNum) + 1;
+        } else {
+          nextIdNumber = highestLocalId + 1;
+        }
+      } else {
+        nextIdNumber = highestLocalId + 1;
+      }
+
+      const newDebitTransaction: Transaction = {
+        ...debitTransaction,
+        id: `txn_${nextIdNumber}`,
+      };
+
+      const newCreditTransaction: Transaction = {
+        ...creditTransaction,
+        id: `txn_${nextIdNumber + 1}`,
+      };
+
+      setAllTransactions(prev => [newDebitTransaction, newCreditTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+      // No vault changes for forward entry as it is net zero
+
+      (async () => {
+        try {
+          await localDB.saveTransaction(newDebitTransaction);
+          await localDB.saveTransaction(newCreditTransaction);
+          if (googleSheetsConnected) {
+            setSyncStatus('syncing');
+            await googleSheets.addTransaction(newDebitTransaction);
+            await googleSheets.addTransaction(newCreditTransaction);
+            setSyncStatus('success');
+          }
+        } catch (error) {
+          setSyncStatus('error');
+          console.error(`Failed to save or sync forward entry:`, error);
+        }
+      })();
+    } catch (error) {
+      console.error("Error adding forward entry:", error);
+      setSyncStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, allTransactions, googleSheetsConnected]);
 
   const updateTransaction = useCallback(async (updatedTransaction: Transaction & { manualDate?: string }) => {
     // UI Update First
@@ -386,6 +469,7 @@ useEffect(() => {
     locations: LOCATIONS,
     personNames,
     addTransaction,
+    addForwardEntry,
     updateTransaction,
     deleteTransactionsByIds,
     addCompany,
