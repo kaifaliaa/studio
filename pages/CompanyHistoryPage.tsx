@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
 
@@ -22,7 +22,8 @@ const TransactionItem: React.FC<{
   transaction: Transaction;
   isSelected: boolean;
   onSelect: (id: string) => void;
-}> = ({ transaction, isSelected, onSelect }) => {
+  from: string;
+}> = ({ transaction, isSelected, onSelect, from }) => {
   const { id, date, type, person, amount, paymentMethod } = transaction;
 
   const formattedDate = new Date(date).toLocaleString('en-IN', {
@@ -58,7 +59,7 @@ const TransactionItem: React.FC<{
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase">{paymentMethod}</p>
         </div>
-        <Link to={`/edit/${id}`} className="p-2 text-gray-400 hover:text-blue-500 transition-colors" aria-label="Edit transaction">
+        <Link to={`/edit/${id}`} state={{ from }} className="p-2 text-gray-400 hover:text-blue-500 transition-colors" aria-label="Edit transaction">
             <PencilIcon className="h-5 w-5" />
         </Link>
       </div>
@@ -69,8 +70,9 @@ const TransactionItem: React.FC<{
 const CompanyHistoryPage: React.FC = () => {
   const { companyName } = useParams<{ companyName: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { transactions, deleteTransactionsByIds, addTransaction, user } = useAppContext();
+  const { transactions, deleteTransactionsByIds, addForwardEntry, user } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const locationFilter = searchParams.get('location');
 
@@ -250,7 +252,7 @@ const CompanyHistoryPage: React.FC = () => {
       paymentMethod: 'cash',
       person: 'Forwarded to Next Day',
       type: 'debit' as 'debit',
-      recordedBy: user.displayName,
+      recordedBy: user.displayName || user.email || 'Unknown',
       breakdown: {},
     };
 
@@ -262,18 +264,18 @@ const CompanyHistoryPage: React.FC = () => {
       paymentMethod: 'cash',
       person: 'Received from Previous Day',
       type: 'credit' as 'credit',
-      recordedBy: user.displayName,
+      recordedBy: user.displayName || user.email || 'Unknown',
       breakdown: {},
     };
 
     try {
       if (forwardAmount > 0) {
-        await addTransaction(debitTransaction as Omit<Transaction, 'id'>);
-        await addTransaction(creditTransaction as Omit<Transaction, 'id'>);
+        await addForwardEntry(debitTransaction, creditTransaction);
       } else {
-        // If balance is negative, we credit the current day and debit the next.
-        await addTransaction({ ...debitTransaction, type: 'credit', person: 'Negative Balance Forwarded' } as Omit<Transaction, 'id'>);
-        await addTransaction({ ...creditTransaction, type: 'debit', person: 'Negative Balance Received' } as Omit<Transaction, 'id'>);
+        await addForwardEntry(
+          { ...debitTransaction, type: 'credit', person: 'Negative Balance Forwarded' },
+          { ...creditTransaction, type: 'debit', person: 'Negative Balance Received' }
+        );
       }
       
       alert('Balance forwarded successfully!');
@@ -420,7 +422,7 @@ const CompanyHistoryPage: React.FC = () => {
 
       {filteredTransactions.length > 0 ? (
         <div className="space-y-4">
-          {filteredTransactions.map(tx => <TransactionItem key={tx.id} transaction={tx} isSelected={selectedIds.includes(tx.id)} onSelect={handleSelect} />)}
+          {filteredTransactions.map(tx => <TransactionItem key={tx.id} transaction={tx} isSelected={selectedIds.includes(tx.id)} onSelect={handleSelect} from={location.pathname + location.search} />)}
         </div>
       ) : (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-xl mt-4">
