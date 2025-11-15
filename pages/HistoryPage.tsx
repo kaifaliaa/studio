@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
@@ -16,6 +16,7 @@ import { DocumentArrowDownIcon } from '../components/icons/DocumentArrowDownIcon
 
 const HistoryPage: React.FC = () => {
   const { transactions, deleteTransactionsByIds, companyNames, locations, manualSync, syncStatus, personNames } = useAppContext();
+  const location = useLocation();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCompany, setFilterCompany] = useState('all');
@@ -348,7 +349,7 @@ const HistoryPage: React.FC = () => {
                       </div>
                     )}
                     <div className="flex justify-end gap-2 pt-4 border-t">
-                      <Link to={`/edit/${tx.id}`} className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">Edit</Link>
+                      <Link to={`/edit/${tx.id}`} state={{ from: location.pathname + location.search }} className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm">Edit</Link>
                     </div>
                   </div>
                 </div>
