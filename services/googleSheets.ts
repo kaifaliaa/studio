@@ -3,7 +3,7 @@ import { Transaction } from '../types';
 
 // Configuration for Google Apps Script Web App
 const GOOGLE_APPS_SCRIPT_CONFIG = {
-  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbyKck18OrdgVaOf3dJ43blS_sdrkAXoQLyTXSFeTXgxCeogsxPSg5LOJfI7D8D9of7u/exec',
+  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxL-Hd-FtmOpAqVZRlNiZK0Ch8uJaqOsNQnlawrXaNV_kLbZkh8h6xv3ZO2mR4DJCY/exec',
 };
 
 // Convert transaction to the format expected by Google Apps Script
@@ -269,6 +269,33 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Failed to fetch transactions from Google Sheets:', error);
       return [];
+    }
+  }
+  
+  async getLastTransactionId(): Promise<string | null> {
+    try {
+      console.log('Fetching last transaction ID from Google Sheets');
+      const url = new URL(this.webAppUrl);
+      url.searchParams.append('action', 'getLastId');
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Received last transaction ID from Google Sheets:', data.lastId);
+        return data.lastId;
+      } else {
+        console.error('Failed to fetch last transaction ID:', response.status, response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Failed to fetch last transaction ID from Google Sheets:', error);
+      return null;
     }
   }
 
