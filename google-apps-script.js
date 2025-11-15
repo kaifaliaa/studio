@@ -55,6 +55,12 @@ function doGet(e) {
         return ContentService
           .createTextOutput(JSON.stringify({ transactions: transactions }))
           .setMimeType(ContentService.MimeType.JSON);
+      case 'getLastId':
+        Logger.log('GetLastId endpoint called');
+        const lastId = getLastTransactionId();
+        return ContentService
+          .createTextOutput(JSON.stringify({ lastId: lastId }))
+          .setMimeType(ContentService.MimeType.JSON);
         
       default:
         Logger.log('Unknown action: ' + action);
@@ -141,7 +147,7 @@ function doPost(e) {
         updateTransaction(data.data);
         return ContentService
           .createTextOutput(JSON.stringify({ success: true }))
-          .setMimeType(ContentService.MimeType.JSON);
+          self.setMimeType(ContentService.MimeType.JSON);
         
       case 'delete':
         Logger.log('Deleting transaction: ' + data.id);
@@ -349,6 +355,23 @@ function getAllTransactions(recordedByFilter) {
     throw error;
   }
 }
+function getLastTransactionId() {
+  try {
+    const sheet = getOrCreateSheet();
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      // Fetch the last row's ID
+      const lastId = sheet.getRange(lastRow, 1).getValue();
+      Logger.log('Last transaction ID: ' + lastId);
+      return lastId;
+    }
+    return null; // No transactions yet
+  } catch (error) {
+    Logger.log('Error in getLastTransactionId: ' + error.toString());
+    return null;
+  }
+}
+
 
 /**
  * Get or create the transactions sheet
