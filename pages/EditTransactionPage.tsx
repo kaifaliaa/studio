@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction, NoteCounts, TransactionType } from '../types';
 import { DENOMINATIONS } from '../constants';
@@ -14,14 +14,17 @@ import { TrendingDownIcon } from '../components/icons/TrendingDownIcon';
 const EditTransactionPage: React.FC = () => {
     const { transactionId } = useParams<{ transactionId: string }>();
     const navigate = useNavigate();
-    const { transactions, updateTransaction, companyNames, locations } = useAppContext();
+    const reactLocation = useLocation();
+    const { transactions, updateTransaction, companyNames, locations: appLocations } = useAppContext();
+
+    const from = reactLocation.state?.from || '/history';
 
     const [transaction, setTransaction] = useState<Transaction | null>(null);
     
     // Form state
     const [person, setPerson] = useState('');
     const [company, setCompany] = useState('');
-    const [location, setLocation] = useState('');
+    const [formLocation, setFormLocation] = useState('');
     const [recordedBy, setRecordedBy] = useState('');
     const [transactionType, setTransactionType] = useState<TransactionType>('credit');
     const [amount, setAmount] = useState<number>(0);
@@ -38,15 +41,14 @@ const EditTransactionPage: React.FC = () => {
             setTransaction(txToEdit);
             setPerson(txToEdit.person || '');
             setCompany(txToEdit.company || 'NA');
-            setLocation(txToEdit.location);
+            setFormLocation(txToEdit.location);
             setRecordedBy(txToEdit.recordedBy);
             setTransactionType(txToEdit.type);
             setAmount(txToEdit.amount);
 
-            // Correctly format the date for the datetime-local input
             const dateToUse = txToEdit.manualDate || txToEdit.date || (txToEdit.timestamp ? new Date(txToEdit.timestamp.seconds * 1000) : new Date());
             const localDate = new Date(dateToUse);
-            const localDateString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            const localDateString = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000).toISOString().slice(0, 19);
             setManualDate(localDateString);
 
             if (txToEdit.paymentMethod === 'cash' && txToEdit.breakdown) {
@@ -57,18 +59,31 @@ const EditTransactionPage: React.FC = () => {
         }
     }, [transactionId, transactions, navigate]);
 
+    const showDenominations = useMemo(() => {
+        if (transaction?.paymentMethod !== 'cash') {
+            return false;
+        }
+        if (transactionType === 'credit') {
+            return true;
+        }
+        if (transactionType === 'debit') {
+            return transaction.breakdown && Object.keys(transaction.breakdown).length > 0;
+        }
+        return false;
+    }, [transaction, transactionType]);
+
     const totalAmount = useMemo(() => {
-        if (transaction?.paymentMethod === 'cash') {
+        if (showDenominations) {
              return DENOMINATIONS.reduce((sum, denom) => sum + (breakdown[denom] || 0) * denom, 0);
         }
         return amount;
-    }, [breakdown, amount, transaction]);
+    }, [showDenominations, breakdown, amount]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!transaction) return;
         
-        if (!location) {
+        if (!formLocation) {
           setError("Location is a required field.");
           return;
         }
@@ -76,23 +91,27 @@ const EditTransactionPage: React.FC = () => {
         setError(null);
         setIsSubmitting(true);
 
-        const updatedTx: Transaction = {
+        const finalAmount = showDenominations 
+            ? DENOMINATIONS.reduce((sum, denom) => sum + (breakdown[denom] || 0) * denom, 0)
+            : amount;
+
+        const updatedTx: Transaction & { manualDate?: string } = {
             ...transaction,
             person,
             company: company || 'NA',
-            location,
+            location: formLocation,
             recordedBy,
             type: transactionType,
-            amount: totalAmount,
-            breakdown: transaction.paymentMethod === 'cash' ? breakdown : {},
-            manualDate,
+            amount: finalAmount,
+            breakdown: showDenominations ? breakdown : {},
+            manualDate: manualDate,
         };
 
         try {
             await updateTransaction(updatedTx);
-            setSuccessMessage('Transaction updated successfully!');
+            setSuccessMessage('Transaction updated successfully! Redirecting...');
             setTimeout(() => {
-                navigate('/history');
+                navigate(from, { replace: true });
             }, 1500);
         } catch (err: any) {
             setError(err.message || "An unexpected error occurred.");
@@ -111,9 +130,9 @@ const EditTransactionPage: React.FC = () => {
     return (
         <div className="max-w-xl mx-auto">
             <div className="flex items-center gap-4 mb-6">
-                <Link to="/history" className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
+                <Link to={from} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
                     <ArrowLeftIcon className="h-5 w-5"/>
-                    <span>Back to History</span>
+                    <span>Back</span>
                 </Link>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Transaction</h2>
             </div>
@@ -151,38 +170,15 @@ const EditTransactionPage: React.FC = () => {
                         <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
                         <div className="mt-1 relative rounded-md shadow-sm">
                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><MapPinIcon className="h-5 w-5 text-gray-400" /></div>
-                            <select id="location" value={location} onChange={e => setLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none" required>
-                                {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                            <select id="location" value={formLocation} onChange={e => setFormLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none" required>
+                                {appLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
                             </select>
                         </div>
                     </div>
 
                     <div>
                         <label htmlFor="manualDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date and Time</label>
-                        <input type="datetime-local" name="manualDate" id="manualDate" value={manualDate} onChange={e => setManualDate(e.target.value)} className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
-                    </div>
-
-                    <hr className="border-gray-200 dark:border-gray-700" />
-                    
-                    {transaction.paymentMethod === 'cash' ? (
-                         <div>
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Cash Denominations</h3>
-                            <CurrencyCounter value={breakdown} onChange={setBreakdown} />
-                        </div>
-                    ) : (
-                        <div>
-                            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount ({transaction.paymentMethod.toUpperCase()})</label>
-                            <div className="mt-1 relative rounded-md shadow-sm">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span className="text-gray-500 sm:text-sm">₹</span></div>
-                                <input type="number" id="amount" value={amount} onChange={e => setAmount(Number(e.target.value))} className="block w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700" placeholder="0.00" required />
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg text-center">
-                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                            Total Amount: ₹{totalAmount.toLocaleString('en-IN')}
-                        </h3>
+                        <input type="datetime-local" name="manualDate" id="manualDate" value={manualDate} onChange={e => setManualDate(e.target.value)} className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white dark:bg-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" step="1" />
                     </div>
 
                     <hr className="border-gray-200 dark:border-gray-700" />
@@ -203,6 +199,27 @@ const EditTransactionPage: React.FC = () => {
                                 </label>
                             </div>
                         </fieldset>
+                    </div>
+                    
+                    {showDenominations ? (
+                         <div>
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Cash Denominations</h3>
+                            <CurrencyCounter value={breakdown} onChange={setBreakdown} />
+                        </div>
+                    ) : (
+                        <div>
+                            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Amount</label>
+                            <div className="mt-1 relative rounded-md shadow-sm">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><span className="text-gray-500 sm:text-sm">₹</span></div>
+                                <input type="number" id="amount" value={amount} onChange={e => setAmount(Number(e.target.value))} className="block w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700" placeholder="0.00" required />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg text-center">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                            Total Amount: ₹{totalAmount.toLocaleString('en-IN')}
+                        </h3>
                     </div>
 
                     <div>
