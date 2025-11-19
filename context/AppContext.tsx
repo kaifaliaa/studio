@@ -44,25 +44,16 @@ const initializeVault = (): NoteCounts => {
     return freshVault;
 };
 
-const getHighestTransactionId = (transactions: Transaction[]): number => {
-  let highestId = 0;
-  transactions.forEach(tx => {
-    const match = tx.id.match(/^txn[_-](\d+)$/);
-    if (match) {
-      const idNum = parseInt(match[1], 10);
-      if (idNum > highestId) {
-        highestId = idNum;
-      }
-    }
-  });
-  return highestId;
-};
+const generateUniqueTransactionId = (): string => {
+  const timestamp = new Date().getTime();
+  const randomPart = Math.random().toString(36).substring(2, 9);
+  return `txn_${timestamp}_${randomPart}`;
+}
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const { currentUser } = useAuth();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nextTransactionId, setNextTransactionId] = useState(1);
   const [companyNames, setCompanyNames] = useState<string[]>(defaultCompanyNames);
   const [vault, setVault] = useState<NoteCounts>(() => initializeVault());
   const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
@@ -123,10 +114,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             const sheetTransactions = await googleSheets.getAllTransactions();
             console.log(`📥 Fetched ${sheetTransactions.length} transactions from sheets.`);
 
-            const allTx = [...localTransactions, ...sheetTransactions];
-            const highestId = getHighestTransactionId(allTx);
-            setNextTransactionId(highestId + 1);
-
             const sheetTxMap = new Map(sheetTransactions.map(tx => [tx.id, tx]));
 
             // Upload local transactions that are not in sheets
@@ -178,8 +165,6 @@ useEffect(() => {
             if (isConnected) {
                 setGoogleSheetsConnected(true);
                 const sheetTransactions = await googleSheets.getAllTransactions();
-                const highestId = getHighestTransactionId(sheetTransactions);
-                setNextTransactionId(highestId + 1);
                 const sortedTransactions = sheetTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                 
                 setAllTransactions(sortedTransactions);
@@ -197,8 +182,6 @@ useEffect(() => {
                 console.warn('❌ Google Sheets connection failed. Loading from local DB.');
                 setGoogleSheetsConnected(false);
                 const localTransactions = await localDB.getTransactions();
-                const highestId = getHighestTransactionId(localTransactions);
-                setNextTransactionId(highestId + 1);
                 const sortedTransactions = localTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
                 setAllTransactions(sortedTransactions);
                 setSyncStatus('idle');
@@ -229,27 +212,10 @@ useEffect(() => {
 
     try {
       setIsSubmitting(true);
-
-      const lastId = await googleSheets.getLastTransactionId();
-      const highestLocalId = getHighestTransactionId(allTransactions);
-      let nextIdNumber = 1;
-
-      if (lastId) {
-        const match = lastId.match(/^txn[_-](\d+)$/);
-        if (match) {
-          const sheetIdNum = parseInt(match[1], 10);
-          nextIdNumber = Math.max(highestLocalId, sheetIdNum) + 1;
-        } else {
-          nextIdNumber = highestLocalId + 1;
-        }
-      } else {
-        nextIdNumber = highestLocalId + 1;
-      }
-
       const transactionDate = newTransactionData.manualDate || newTransactionData.date;
       const newTransaction: Transaction = {
         ...newTransactionData,
-        id: `txn_${nextIdNumber}`,
+        id: generateUniqueTransactionId(),
         date: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString(),
       };
 
@@ -298,30 +264,14 @@ useEffect(() => {
     try {
       setIsSubmitting(true);
 
-      const lastId = await googleSheets.getLastTransactionId();
-      const highestLocalId = getHighestTransactionId(allTransactions);
-      let nextIdNumber = 1;
-
-      if (lastId) {
-        const match = lastId.match(/^txn[_-](\d+)$/);
-        if (match) {
-          const sheetIdNum = parseInt(match[1], 10);
-          nextIdNumber = Math.max(highestLocalId, sheetIdNum) + 1;
-        } else {
-          nextIdNumber = highestLocalId + 1;
-        }
-      } else {
-        nextIdNumber = highestLocalId + 1;
-      }
-
       const newDebitTransaction: Transaction = {
         ...debitTransaction,
-        id: `txn_${nextIdNumber}`,
+        id: generateUniqueTransactionId(),
       };
 
       const newCreditTransaction: Transaction = {
         ...creditTransaction,
-        id: `txn_${nextIdNumber + 1}`,
+        id: generateUniqueTransactionId(),
       };
 
       setAllTransactions(prev => [newDebitTransaction, newCreditTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
