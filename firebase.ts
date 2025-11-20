@@ -1,50 +1,25 @@
-// Temporary Firebase configuration for CDN approach
-declare global {
-  interface Window {
-    firebase: any;
-  }
-}
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Firebase configuration object
-export const firebaseConfig = {
-  apiKey: "AIzaSyDcvA8qcEheap8YkhCboRhTrFx0KYTwaCU",
-  authDomain: "ali-enterprises-82dad.firebaseapp.com",
-  projectId: "ali-enterprises-82dad",
-  storageBucket: "ali-enterprises-82dad.firebasestorage.app",
-  messagingSenderId: "714914859297",
-  appId: "1:714914859297:web:acb723ed92e0dbf819d660",
-  measurementId: "G-0KTNHK0NDD"
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyB4D2mhXwjEhBYspkNMDLepwCSgZi4uv7I",
+  authDomain: "ali-enterprises-21c89.firebaseapp.com",
+  projectId: "ali-enterprises-21c89",
+  storageBucket: "ali-enterprises-21c89.firebasestorage.app",
+  messagingSenderId: "664470964176",
+  appId: "1:664470964176:web:38d291f3c729b19ebd9bd5",
+  measurementId: "G-8DMZL9MZRB"
 };
 
-// Create Firebase instances
-let firebaseApp: any = null;
-let auth: any = null;
-let analytics: any = null;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const auth = getAuth(app);
 
-// Initialize Firebase when available
-if (typeof window !== 'undefined') {
-  // Wait for Firebase to load from CDN
-  const initFirebase = () => {
-    if (window.firebase) {
-      try {
-        firebaseApp = window.firebase.initializeApp(firebaseConfig);
-        auth = window.firebase.auth();
-        if (window.firebase.analytics) {
-          analytics = window.firebase.analytics();
-        }
-      } catch (error) {
-        console.error('Firebase initialization error:', error);
-      }
-    }
-  };
-  
-  // Try to initialize immediately or wait for load
-  if (window.firebase) {
-    initFirebase();
-  } else {
-    window.addEventListener('load', initFirebase);
-  }
-}
-
-export { auth, analytics };
-export default firebaseApp;
+export { app, analytics, auth };

@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth } from '../firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
 
 export interface User {
   uid: string;
@@ -34,13 +43,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Firebase implementation using global Firebase object
   const login = async (email: string, password: string): Promise<void> => {
     if (!auth) {
       throw new Error('Firebase not initialized');
     }
     try {
-      await auth.signInWithEmailAndPassword(email, password);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
       throw new Error(error.message || 'Login failed');
     }
@@ -51,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw new Error('Firebase not initialized');
     }
     try {
-      await auth.createUserWithEmailAndPassword(email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
       throw new Error(error.message || 'Registration failed');
     }
@@ -62,78 +70,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw new Error('Firebase not initialized');
     }
     try {
-      await auth.signOut();
-      localStorage.removeItem('ali_enterprises_user'); // Clean up local storage
+      await signOut(auth);
+      localStorage.removeItem('ali_enterprises_user');
     } catch (error: any) {
       throw new Error(error.message || 'Logout failed');
     }
   };
 
   const loginWithGoogle = async (): Promise<void> => {
-    if (!auth || !window.firebase) {
+    if (!auth) {
       throw new Error('Firebase not initialized');
     }
     try {
-      const provider = new window.firebase.auth.GoogleAuthProvider();
-      await auth.signInWithPopup(provider);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
     } catch (error: any) {
       throw new Error(error.message || 'Google login failed');
     }
   };
 
   useEffect(() => {
-    const initAuth = () => {
-      if (auth) {
-        const unsubscribe = auth.onAuthStateChanged((user: any) => {
-          if (user) {
-            const userData = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName || user.email?.split('@')[0] || 'User'
-            };
-            setCurrentUser(userData);
-            localStorage.setItem('ali_enterprises_user', JSON.stringify(userData));
-          } else {
-            setCurrentUser(null);
-            localStorage.removeItem('ali_enterprises_user');
-          }
-          setLoading(false);
-        });
-        return unsubscribe;
-      } else {
-        // Fallback to check localStorage if Firebase not ready
-        const storedUser = localStorage.getItem('ali_enterprises_user');
-        if (storedUser) {
-          setCurrentUser(JSON.parse(storedUser));
-        }
-        setLoading(false);
+    if (!auth) {
+      console.warn('Firebase auth not available, using fallback');
+      const storedUser = localStorage.getItem('ali_enterprises_user');
+      if (storedUser) {
+        setCurrentUser(JSON.parse(storedUser));
       }
-    };
-
-    // Try to initialize immediately or wait for Firebase
-    if (auth) {
-      initAuth();
-    } else {
-      const checkFirebase = setInterval(() => {
-        if (auth) {
-          clearInterval(checkFirebase);
-          initAuth();
-        }
-      }, 100);
-      
-      // Timeout after 5 seconds
-      setTimeout(() => {
-        clearInterval(checkFirebase);
-        if (!auth) {
-          console.warn('Firebase auth not available, using fallback');
-          const storedUser = localStorage.getItem('ali_enterprises_user');
-          if (storedUser) {
-            setCurrentUser(JSON.parse(storedUser));
-          }
-          setLoading(false);
-        }
-      }, 5000);
+      setLoading(false);
+      return;
     }
+
+    const unsubscribe = onAuthStateChanged(auth, (user: FirebaseUser | null) => {
+      if (user) {
+        const userData: User = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || user.email?.split('@')[0] || 'User',
+        };
+        setCurrentUser(userData);
+        localStorage.setItem('ali_enterprises_user', JSON.stringify(userData));
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem('ali_enterprises_user');
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const value: AuthContextType = {
