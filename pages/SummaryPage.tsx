@@ -168,6 +168,11 @@ const SummaryPage: React.FC = () => {
           className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
         />
       </div>
+      <div className="mb-6">
+          <Link to="/group/finance" className="text-blue-500 hover:underline">
+              View Finance Group History
+          </Link>
+      </div>
 
       {/* Table for larger screens */}
       <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden">

@@ -59,28 +59,39 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
-  const transactions = allTransactions.filter(tx => {
-    if (!currentUser) return false;
+  const transactions = useMemo(() => {
+    if (!currentUser) {
+      return [];
+    }
+
+    if (currentUser.email && currentUser.email.toUpperCase() === 'A@GMAIL.COM') {
+      return allTransactions;
+    }
+
     const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
-    const txRecordedBy = tx.recordedBy.replace('@gmail.com', '');
-    const simplifiedCurrentUserName = currentUserName.replace('@gmail.com', '');
-    return txRecordedBy.toLowerCase() === simplifiedCurrentUserName.toLowerCase();
-  });
+    const simplifiedCurrentUserName = currentUserName.replace('@gmail.com', '').toLowerCase();
+    
+    return allTransactions.filter(tx => {
+      const txRecordedBy = (tx.recordedBy || '').replace('@gmail.com', '').toLowerCase();
+      return txRecordedBy === simplifiedCurrentUserName;
+    });
+  }, [allTransactions, currentUser]);
 
   const personNames = useMemo(() => {
     const names = new Set(transactions.map(tx => tx.person).filter(Boolean) as string[]);
     return Array.from(names).sort();
   }, [transactions]);
 
-  const recalculateVault = useCallback((transactions: Transaction[], currentUserName?: string) => {
+  const recalculateVault = useCallback((transactionsToProcess: Transaction[]) => {
     const newVault = initializeVault();
-    if (!currentUserName) {
-        if(currentUser) {
-            currentUserName = currentUser?.displayName || currentUser?.email || 'Unknown User';
-        }
+    let transactionsForVault = transactionsToProcess;
+
+    if (currentUser && currentUser.email && currentUser.email.toUpperCase() !== 'A@GMAIL.COM') {
+      const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
+      transactionsForVault = transactionsToProcess.filter(tx => tx.recordedBy === currentUserName);
     }
-    const userTransactions = transactions.filter(tx => tx.recordedBy === currentUserName);
-    userTransactions.forEach(tx => {
+
+    transactionsForVault.forEach(tx => {
       if (tx.paymentMethod === 'cash' && tx.breakdown && typeof tx.breakdown === 'object') {
         for (const denomStr in tx.breakdown) {
           const denom = parseInt(denomStr, 10);
@@ -134,8 +145,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             await localDB.clearAndRepopulateTransactions(finalSorted);
             console.log('💿 Local database updated with final transactions.');
 
-            const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
-            const recalculatedVault = recalculateVault(finalSorted, currentUserName);
+            const recalculatedVault = recalculateVault(finalSorted);
             setVault(recalculatedVault);
             console.log('✅ Vault recalculated after sync.');
 
@@ -171,8 +181,7 @@ useEffect(() => {
                 await localDB.clearAndRepopulateTransactions(sortedTransactions);
                 console.log(`✅ Loaded and synced ${sortedTransactions.length} transactions from Google Sheets.`);
 
-                const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
-                const recalculatedVault = recalculateVault(sortedTransactions, currentUserName);
+                const recalculatedVault = recalculateVault(sortedTransactions);
                 setVault(recalculatedVault);
                 console.log('✅ Vault recalculated on initial load.');
 

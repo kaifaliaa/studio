@@ -23,6 +23,7 @@ const HistoryPage: React.FC = () => {
   const [filterLocation, setFilterLocation] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [filterName, setFilterName] = useState('all');
+  const [filterRecorder, setFilterRecorder] = useState('all');
   const [filterYear, setFilterYear] = useState('all');
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterDay, setFilterDay] = useState('all');
@@ -42,6 +43,14 @@ const HistoryPage: React.FC = () => {
       Object.keys(tx.breakdown).length > 0
     ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions]);
+
+    const recorderNames = useMemo(() => {
+        const names = new Set<string>();
+        mainHistoryTransactions.forEach(tx => {
+            names.add(tx.recordedBy);
+        });
+        return Array.from(names);
+    }, [mainHistoryTransactions]);
 
   const { years, months, days } = useMemo(() => {
     const years = new Set<string>();
@@ -73,6 +82,8 @@ const HistoryPage: React.FC = () => {
       if (filterLocation !== 'all' && tx.location !== filterLocation) return false;
       if (filterType !== 'all' && tx.type !== filterType) return false;
       if (filterName !== 'all' && tx.person !== filterName) return false;
+      if (filterRecorder !== 'all' && tx.recordedBy !== filterRecorder) return false;
+
 
       const txDate = new Date(tx.date);
       if (!showAllDates) {
@@ -89,8 +100,7 @@ const HistoryPage: React.FC = () => {
       }
       
       const searchLower = searchTerm.toLowerCase();
-      if (searchTerm && !(
-        (typeof tx.person === 'string' && tx.person.toLowerCase().includes(searchLower)) ||
+      if (searchTerm && !((typeof tx.person === 'string' && tx.person.toLowerCase().includes(searchLower)) ||
           tx.company?.toLowerCase().includes(searchLower) ||
           tx.amount.toString().includes(searchLower) ||
           tx.location.toLowerCase().includes(searchLower) ||
@@ -99,7 +109,7 @@ const HistoryPage: React.FC = () => {
 
       return true;
     });
-  }, [mainHistoryTransactions, searchTerm, filterCompany, filterLocation, filterType, filterName, showAllDates, filterYear, filterMonth, filterDay]);
+  }, [mainHistoryTransactions, searchTerm, filterCompany, filterLocation, filterType, filterName, filterRecorder, showAllDates, filterYear, filterMonth, filterDay]);
 
   const resetFilters = useCallback(() => {
     setSearchTerm('');
@@ -107,6 +117,7 @@ const HistoryPage: React.FC = () => {
     setFilterLocation('all');
     setFilterType('all');
     setFilterName('all');
+    setFilterRecorder('all');
     setFilterYear('all');
     setFilterMonth('all');
     setFilterDay('all');
@@ -261,6 +272,7 @@ const HistoryPage: React.FC = () => {
                 <select value={filterLocation} onChange={e => setFilterLocation(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Locations</option>{locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}</select>
                 <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select>
                 <select value={filterName} onChange={e => setFilterName(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Names</option>{personNames.map(name => <option key={name} value={name}>{name}</option>)}</select>
+                <select value={filterRecorder} onChange={e => setFilterRecorder(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Recorders</option>{recorderNames.map(name => <option key={name} value={name}>{name.replace('@gmail.com', '')}</option>)}</select>
             </div>
             <div className="mb-4 flex items-center gap-4">
                 <button onClick={() => setShowAllDates(!showAllDates)} className={`px-4 py-2 rounded-md font-medium transition-colors text-sm ${!showAllDates ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>

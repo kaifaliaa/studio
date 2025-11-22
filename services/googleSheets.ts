@@ -3,7 +3,7 @@ import { Transaction } from '../types';
 
 // Configuration for Google Apps Script Web App
 const GOOGLE_APPS_SCRIPT_CONFIG = {
-  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxL-Hd-FtmOpAqVZRlNiZK0Ch8uJaqOsNQnlawrXaNV_kLbZkh8h6xv3ZO2mR4DJCY/exec',
+  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxlZD6Ky_-mJOgM-zU7q40qk078Ea_pS_chab6Hbsz2aqB3g0VgvdheTXHfbaOUkaHg/exec',
 };
 
 // Convert transaction to the format expected by Google Apps Script
@@ -221,13 +221,25 @@ export class GoogleSheetsService {
       // Get current user for filtering
       const user = localStorage.getItem('ali_enterprises_user');
       const userData = user ? JSON.parse(user) : null;
-      const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
-      
+      const currentUserEmail = userData?.email;
+
       const url = new URL(this.webAppUrl);
       url.searchParams.append('action', 'getAll');
-      url.searchParams.append('recordedBy', currentUserName);
       
-      console.log('Fetching transactions for user:', currentUserName);
+      // Pass the email of the current user, or an 'admin' flag if it's the admin
+      if (currentUserEmail) {
+        if (currentUserEmail.toLowerCase() === 'a@gmail.com') {
+           url.searchParams.append('user', 'admin');
+           console.log('Fetching all transactions for admin user');
+        } else {
+           url.searchParams.append('user', currentUserEmail);
+           console.log('Fetching transactions for user:', currentUserEmail);
+        }
+      } else {
+        console.log('No user logged in, fetching public data only');
+      }
+
+
       console.log('Request URL:', url.toString());
       
       const response = await fetch(url.toString(), {
@@ -244,7 +256,7 @@ export class GoogleSheetsService {
         const data = await response.json();
         console.log('Received data from Google Sheets:', data);
         if (data.transactions && Array.isArray(data.transactions)) {
-          console.log('Parsed', data.transactions.length, 'transactions from Google Sheets for user:', currentUserName);
+          console.log('Parsed', data.transactions.length, 'transactions from Google Sheets');
           return data.transactions.map((row: any): Transaction => ({
             id: row.id || '',
             date: row.date || new Date().toISOString(),

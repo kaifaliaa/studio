@@ -12,6 +12,7 @@ import VaultPage from './pages/VaultPage';
 import SummaryPage from './pages/SummaryPage';
 import UserProfilePage from './pages/UserProfilePage';
 import CompanyHistoryPage from './pages/CompanyHistoryPage';
+import GroupHistoryPage from './pages/GroupHistoryPage';
 import DebitEntryPage from './pages/DebitEntryPage';
 import UpiCreditPage from './pages/UpiCreditPage';
 import ReportPage from './pages/ReportPage';
@@ -45,6 +46,7 @@ const App: React.FC = () => {
                         <Route path="/summary" element={<SummaryPage />} />
                         <Route path="/profile" element={<UserProfilePage />} />
                         <Route path="/company/:companyName" element={<CompanyHistoryPage />} />
+                        <Route path="/group/:groupName" element={<GroupHistoryPage />} />
                         <Route path="/debit-entry" element={<DebitEntryPage />} />
                         <Route path="/upi-credit" element={<UpiCreditPage />} />
                         <Route path="/report/:companyName" element={<ReportPage />} />

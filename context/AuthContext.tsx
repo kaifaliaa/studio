@@ -14,6 +14,7 @@ export interface User {
   uid: string;
   email: string | null;
   displayName: string | null;
+  isAdmin: boolean;
 }
 
 interface AuthContextType {
@@ -102,10 +103,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const unsubscribe = onAuthStateChanged(auth, (user: FirebaseUser | null) => {
       if (user) {
+        const isAdmin = user.email === 'A@GMAIL.COM';
         const userData: User = {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName || user.email?.split('@')[0] || 'User',
+          isAdmin: isAdmin,
         };
         setCurrentUser(userData);
         localStorage.setItem('ali_enterprises_user', JSON.stringify(userData));
