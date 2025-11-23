@@ -218,6 +218,11 @@ const HistoryPage: React.FC = () => {
     }
   }, [syncStatus]);
 
+  const formatPersonName = (name: string | undefined) => {
+    if (!name) return 'Unknown Customer';
+    return name.trim().toUpperCase();
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
@@ -327,7 +332,7 @@ const HistoryPage: React.FC = () => {
                 <div className="flex-grow cursor-pointer" onClick={() => toggleTransactionDetails(tx.id)}>
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg text-gray-900 dark:text-white">{tx.person || 'Unknown Customer'}</h3>
+                      <h3 className="font-semibold text-lg text-gray-900 dark:text-white">{formatPersonName(tx.person)}</h3>
                       <div className="text-sm text-gray-500 dark:text-gray-400">{new Date(tx.date).toLocaleString('en-IN')}</div>
                     </div>
                     <div className={`text-xl font-bold ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>

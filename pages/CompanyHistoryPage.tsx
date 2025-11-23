@@ -18,6 +18,11 @@ import { RupeeIcon } from '../components/icons/RupeeIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
 
+const formatPersonName = (name: string | undefined) => {
+    if (!name) return 'Unknown Customer';
+    return name.trim().toUpperCase();
+  };
+
 const TransactionItem: React.FC<{
   transaction: Transaction;
   isSelected: boolean;
@@ -46,7 +51,7 @@ const TransactionItem: React.FC<{
         <MinusCircleIcon className="h-8 w-8 text-red-500 flex-shrink-0" />
       )}
       <div className="flex-grow truncate">
-        <p className="font-semibold text-lg text-gray-800 dark:text-white truncate">{person || 'N/A'}</p>
+        <p className="font-semibold text-lg text-gray-800 dark:text-white truncate">{formatPersonName(person)}</p>
         <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{formattedDate}</p>
       </div>
       <div className="flex-shrink-0 flex items-center gap-2">

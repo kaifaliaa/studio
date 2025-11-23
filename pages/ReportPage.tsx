@@ -87,7 +87,7 @@ const ReportPage: React.FC = () => {
         const debits = companyTransactions.filter(tx => tx.type === 'debit');
 
         const creditsByPerson = credits.reduce((acc, tx) => {
-            const personName = tx.person || 'N/A';
+            const personName = (tx.person || 'N/A').trim().toUpperCase();
             if (!acc[personName]) {
                 acc[personName] = [];
             }
