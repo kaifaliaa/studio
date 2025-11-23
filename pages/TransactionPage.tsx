@@ -85,43 +85,45 @@ const TransactionPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 sm:p-4">
+    <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
       {successMessage && (
-        <div className="bg-green-100 dark:bg-green-900/50 border border-green-400 text-green-700 dark:text-green-200 px-4 py-3 rounded-lg relative mb-4" role="alert">
+        <div className="bg-green-100 dark:bg-green-900/50 border border-green-400 text-green-700 dark:text-green-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
           {successMessage}
         </div>
       )}
       {error && (
-        <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg relative mb-4" role="alert">
+        <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
           <strong className="font-bold">Error: </strong>
           <span className="block sm:inline">{error}</span>
         </div>
       )}
 
-      <div className="space-y-3">
-        
+      <div className="space-y-6">
+
+        <hr className="border-gray-200 dark:border-gray-700" />
+
         <div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Cash Denominations</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Cash Denominations</h3>
           <CurrencyCounter value={breakdown} onChange={setBreakdown} />
         </div>
 
-        <div className="bg-gray-100 dark:bg-gray-700/50 p-2 rounded-lg text-center">
+        <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg text-center">
           <h3 className="text-xl font-bold text-gray-800 dark:text-white">
             Total Transaction Amount: ₹{totalAmount.toLocaleString('en-IN')}
           </h3>
         </div>
-        
-        <div>
-          <div className="relative rounded-md shadow-sm">
+
+        <hr className="border-gray-200 dark:border-gray-700" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-1 relative rounded-md shadow-sm">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <UserIcon className="h-5 w-5 text-gray-400" />
             </div>
             <input type="text" name="customerName" id="customerName" value={person} onChange={e => setPerson(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" placeholder="Enter customer's name" />
           </div>
-        </div>
 
-        <div>
-          <div className="relative rounded-md shadow-sm">
+          <div className="mt-1 relative rounded-md shadow-sm">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
             </div>
@@ -133,34 +135,31 @@ const TransactionPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-            <div>
-                <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <MapPinIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <select id="location" name="location" value={location} onChange={e => setLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none" required>
-                        <option value="">Select Location</option>
-                        {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                    </select>
-                </div>
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MapPinIcon className="h-5 w-5 text-gray-400" />
             </div>
+            <select id="location" name="location" value={location} onChange={e => setLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none" required>
+              <option value="">Select Location</option>
+              {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+            </select>
+          </div>
 
-            <div>
-                <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <input type="datetime-local" name="date" id="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" />
-                </div>
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
             </div>
+            <input type="datetime-local" name="date" id="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" />
+          </div>
         </div>
+
         <div>
           <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => handleTransaction('debit')}
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 p-2 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <TrendingDownIcon className="h-5 w-5 text-red-500" />
                 <span>Debit</span>
@@ -169,7 +168,7 @@ const TransactionPage: React.FC = () => {
                 type="button"
                 onClick={() => handleTransaction('credit')}
                 disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 p-2 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <TrendingUpIcon className="h-5 w-5 text-green-500" />
                 <span>Credit</span>
