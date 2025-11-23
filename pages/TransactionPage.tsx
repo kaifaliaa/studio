@@ -20,7 +20,6 @@ const TransactionPage: React.FC = () => {
   const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
 
   // State for form fields
-  const [transactionType, setTransactionType] = useState<TransactionType>('credit');
   const [person, setPerson] = useState('');
   const [company, setCompany] = useState('');
   const [location, setLocation] = useState('');
@@ -51,8 +50,7 @@ const TransactionPage: React.FC = () => {
     setManualDate(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleTransaction = async (transactionType: TransactionType) => {
     if (!location) {
       setError("Location is a required field.");
       return;
@@ -86,8 +84,6 @@ const TransactionPage: React.FC = () => {
     }
   };
 
-  const submitButtonText = `Submit Cash ${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}`;
-
   return (
     <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
       {successMessage && (
@@ -102,42 +98,7 @@ const TransactionPage: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name (Optional)</label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <UserIcon className="h-5 w-5 text-gray-400" />
-            </div>
-            <input type="text" name="customerName" id="customerName" value={person} onChange={e => setPerson(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" placeholder="Enter customer's name" />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Company Name (Optional)</label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
-            </div>
-            <select id="companyName" name="companyName" value={company} onChange={e => setCompany(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none">
-              <option value="">Select Company Name</option>
-              {companyNames.map(name => <option key={name} value={name}>{name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MapPinIcon className="h-5 w-5 text-gray-400" />
-            </div>
-            <select id="location" name="location" value={location} onChange={e => setLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none" required>
-              <option value="">Select Location</option>
-              {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-            </select>
-          </div>
-        </div>
+      <div className="space-y-6">
 
         <hr className="border-gray-200 dark:border-gray-700" />
 
@@ -154,28 +115,36 @@ const TransactionPage: React.FC = () => {
 
         <hr className="border-gray-200 dark:border-gray-700" />
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Transaction Type</label>
-          <fieldset className="grid grid-cols-2 gap-4">
-            <div className="relative">
-              <input type="radio" id="credit" name="transactionType" value="credit" checked={transactionType === 'credit'} onChange={() => setTransactionType('credit')} className="sr-only peer" />
-              <label htmlFor="credit" className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors peer-checked:border-blue-600 peer-checked:ring-1 peer-checked:ring-blue-600 dark:peer-checked:border-blue-500">
-                <TrendingUpIcon className="h-5 w-5 text-green-500" />
-                <span>Credit</span>
-              </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <UserIcon className="h-5 w-5 text-gray-400" />
             </div>
-            <div className="relative">
-              <input type="radio" id="debit" name="transactionType" value="debit" checked={transactionType === 'debit'} onChange={() => setTransactionType('debit')} className="sr-only peer" />
-              <label htmlFor="debit" className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors peer-checked:border-blue-600 peer-checked:ring-1 peer-checked:ring-blue-600 dark:peer-checked:border-blue-500">
-                <TrendingDownIcon className="h-5 w-5 text-red-500" />
-                <span>Debit</span>
-              </label>
+            <input type="text" name="customerName" id="customerName" value={person} onChange={e => setPerson(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" placeholder="Enter customer's name" />
+          </div>
+
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
             </div>
-          </fieldset>
+            <select id="companyName" name="companyName" value={company} onChange={e => setCompany(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none">
+              <option value="">Select Company Name</option>
+              {companyNames.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date and Time</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MapPinIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <select id="location" name="location" value={location} onChange={e => setLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none" required>
+              <option value="">Select Location</option>
+              {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+            </select>
+          </div>
+
           <div className="mt-1 relative rounded-md shadow-sm">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
@@ -185,11 +154,28 @@ const TransactionPage: React.FC = () => {
         </div>
 
         <div>
-          <button type="submit" disabled={isSubmitting} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-            {isSubmitting ? 'Saving...' : submitButtonText}
-          </button>
+          <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => handleTransaction('debit')}
+                disabled={isSubmitting}
+                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <TrendingDownIcon className="h-5 w-5 text-red-500" />
+                <span>Debit</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTransaction('credit')}
+                disabled={isSubmitting}
+                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <TrendingUpIcon className="h-5 w-5 text-green-500" />
+                <span>Credit</span>
+              </button>
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   );
 };
