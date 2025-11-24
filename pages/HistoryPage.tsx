@@ -219,7 +219,7 @@ const HistoryPage: React.FC = () => {
   }, [syncStatus]);
 
   const formatPersonName = (name: string | undefined) => {
-    if (!name) return 'Unknown Customer';
+    if (typeof name !== 'string' || !name) return 'Unknown Customer';
     return name.trim().toUpperCase();
   };
 
