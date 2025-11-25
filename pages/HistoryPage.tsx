@@ -3,11 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
-import { PencilIcon } from '../components/icons/PencilIcon';
-import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
-import { CheckCircleIcon } from '../components/icons/CheckCircleIcon';
-import { MinusCircleIcon } from '../components/icons/MinusCircleIcon';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { ChevronRightIcon } from '../components/icons/ChevronRightIcon';
 import { numberToWords } from '../utils/numberToWords';
@@ -22,7 +18,6 @@ const HistoryPage: React.FC = () => {
   const [filterCompany, setFilterCompany] = useState('all');
   const [filterLocation, setFilterLocation] = useState('all');
   const [filterType, setFilterType] = useState('all');
-  const [filterName, setFilterName] = useState('all');
   const [filterRecorder, setFilterRecorder] = useState('all');
   const [filterYear, setFilterYear] = useState('all');
   const [filterMonth, setFilterMonth] = useState('all');
@@ -81,9 +76,7 @@ const HistoryPage: React.FC = () => {
       if (filterCompany !== 'all' && (tx.company || 'NA') !== filterCompany) return false;
       if (filterLocation !== 'all' && tx.location !== filterLocation) return false;
       if (filterType !== 'all' && tx.type !== filterType) return false;
-      if (filterName !== 'all' && tx.person !== filterName) return false;
       if (filterRecorder !== 'all' && tx.recordedBy !== filterRecorder) return false;
-
 
       const txDate = new Date(tx.date);
       if (!showAllDates) {
@@ -109,14 +102,13 @@ const HistoryPage: React.FC = () => {
 
       return true;
     });
-  }, [mainHistoryTransactions, searchTerm, filterCompany, filterLocation, filterType, filterName, filterRecorder, showAllDates, filterYear, filterMonth, filterDay]);
+  }, [mainHistoryTransactions, searchTerm, filterCompany, filterLocation, filterType, filterRecorder, showAllDates, filterYear, filterMonth, filterDay]);
 
   const resetFilters = useCallback(() => {
     setSearchTerm('');
     setFilterCompany('all');
     setFilterLocation('all');
     setFilterType('all');
-    setFilterName('all');
     setFilterRecorder('all');
     setFilterYear('all');
     setFilterMonth('all');
@@ -222,9 +214,16 @@ const HistoryPage: React.FC = () => {
     if (typeof name !== 'string' || !name) return 'Unknown Customer';
     return name.trim().toUpperCase();
   };
+  
+  const currencyFormatter = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto pb-32 md:pb-24">
       <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Transaction History</h2>
         <div className="flex items-center gap-3 flex-wrap">
@@ -259,27 +258,23 @@ const HistoryPage: React.FC = () => {
           </button>
         </div>
       </div>
-      
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 mb-6">
-        <input 
-          type="text" 
-          placeholder="Search transactions..." 
-          value={searchTerm} 
-          onChange={(e) => setSearchTerm(e.target.value)} 
-          className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700" 
-        />
-      </div>
 
       {showFilters && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 mb-6 space-y-4">
+            <input 
+              type="text" 
+              placeholder="Search transactions..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700" 
+            />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Companies</option>{companyNames.map(name => <option key={name} value={name}>{name}</option>)}</select>
                 <select value={filterLocation} onChange={e => setFilterLocation(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Locations</option>{locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}</select>
                 <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select>
-                <select value={filterName} onChange={e => setFilterName(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Names</option>{personNames.map(name => <option key={name} value={name}>{name}</option>)}</select>
                 <select value={filterRecorder} onChange={e => setFilterRecorder(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Recorders</option>{recorderNames.map(name => <option key={name} value={name}>{name.replace('@gmail.com', '')}</option>)}</select>
             </div>
-            <div className="mb-4 flex items-center gap-4">
+            <div className="flex items-center gap-4">
                 <button onClick={() => setShowAllDates(!showAllDates)} className={`px-4 py-2 rounded-md font-medium transition-colors text-sm ${!showAllDates ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     {showAllDates ? 'Show Today Only' : 'Show All Dates'}
                 </button>
@@ -292,7 +287,7 @@ const HistoryPage: React.FC = () => {
                     <select value={filterDay} onChange={e => setFilterDay(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Days</option>{days.map(d=><option key={d} value={d}>{d}</option>)}</select>
                 </div>
             )}
-            <div className="mt-4 flex justify-end">
+            <div className="flex justify-end">
                 <button onClick={resetFilters} className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm font-medium">Clear Filters</button>
             </div>
         </div>
@@ -300,15 +295,6 @@ const HistoryPage: React.FC = () => {
 
       {syncStatus === 'success' && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">Sync successful!</div>}
       {syncStatus === 'error' && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">Sync failed.</div>}
-
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filtered Transaction Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg"><p className="text-sm font-medium">Total Credits</p><p className="text-2xl font-bold text-green-600">₹{totals.totalCredit.toLocaleString('en-IN')}</p></div>
-          <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg"><p className="text-sm font-medium">Total Debits</p><p className="text-2xl font-bold text-red-600">₹{totals.totalDebit.toLocaleString('en-IN')}</p></div>
-          <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><p className="text-sm font-medium">Net Balance</p><p className={`text-2xl font-bold ${totals.netBalance >= 0 ? 'text-blue-600' : 'text-red-500'}`}>₹{totals.netBalance.toLocaleString('en-IN')}</p></div>
-        </div>
-      </div>
 
       <div className="mb-4 flex items-center">
         <input type="checkbox" id="selectAll" onChange={handleSelectAll} checked={filteredTransactions.length > 0 && selectedIds.length === filteredTransactions.length} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
@@ -394,6 +380,24 @@ const HistoryPage: React.FC = () => {
             </div>
         </div>
       )}
+
+      {/* Totals bar */}
+      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-gray-200 dark:bg-gray-800 p-4 border-t-2 border-gray-300 dark:border-gray-700 flex justify-around text-center no-print">
+         <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Total In</p>
+            <p className="text-lg font-bold text-green-600">{currencyFormatter.format(totals.totalCredit)}</p>
+        </div>
+        <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Total Out</p>
+            <p className="text-lg font-bold text-red-600">{currencyFormatter.format(totals.totalDebit)}</p>
+        </div>
+        <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+            <p className={`text-lg font-bold ${totals.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {currencyFormatter.format(totals.netBalance)}
+            </p>
+        </div>
+    </div>
     </div>
   );
 };
