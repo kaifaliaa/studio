@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { HomeIcon } from './icons/HomeIcon';
 import { BookOpenIcon } from './icons/BookOpenIcon';
+import { BuildingStorefrontIcon } from './icons/BuildingStorefrontIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { UserIcon } from './icons/UserIcon';
 
@@ -60,6 +61,10 @@ const Header: React.FC = () => {
               <NavLink to="/history" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}>
                 <BookOpenIcon />
                 History
+              </NavLink>
+              <NavLink to="/vault" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}>
+                <BuildingStorefrontIcon />
+                Vault
               </NavLink>
               <NavLink to="/summary" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}>
                 <ChartBarIcon />

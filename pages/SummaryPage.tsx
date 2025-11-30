@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { UsersIcon } from '../components/icons/UsersIcon';
 import { ChevronRightIcon } from '../components/icons/ChevronRightIcon';
+import { PlusIcon } from '../components/icons/PlusIcon';
+import { TrashIcon } from '../components/icons/TrashIcon';
 
 interface FilteredSummary {
   displayName: string;
@@ -23,12 +25,27 @@ interface SummaryAccumulatorValue {
 type SummaryAccumulator = { [key: string]: SummaryAccumulatorValue };
 
 const SummaryPage: React.FC = () => {
-  const { transactions, locations } = useAppContext();
+  const { transactions, locations, companyNames, addCompany, deleteCompany } = useAppContext();
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [newCompanyName, setNewCompanyName] = useState('');
+  const [companyToDelete, setCompanyToDelete] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
   const sortedLocations = useMemo(() => [...locations].sort(), [locations]);
   const activeLocation = selectedLocation ?? (sortedLocations.length > 0 ? sortedLocations[0] : null);
+
+
+  const handleAddCompany = async () => {
+    if (newCompanyName.trim() === '') return;
+    await addCompany(newCompanyName.trim().toUpperCase());
+    setNewCompanyName('');
+  };
+
+  const handleDeleteCompany = async () => {
+    if (companyToDelete.trim() === '') return;
+    await deleteCompany(companyToDelete.trim());
+    setCompanyToDelete('');
+  };
 
   const filteredSummaries = useMemo(() => {
     const relevantTransactions = transactions.filter(tx => tx.location === activeLocation);
@@ -81,6 +98,44 @@ const SummaryPage: React.FC = () => {
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Company Balances</h2>
             <p className="text-gray-500 dark:text-gray-400 mt-1">Balances based on your recorded transactions.</p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newCompanyName}
+              onChange={(e) => setNewCompanyName(e.target.value)}
+              placeholder="New Company Name"
+              className="w-full sm:w-auto px-2 py-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+            />
+            <button
+              onClick={handleAddCompany}
+              className="px-3 py-1 bg-green-600 text-white rounded-md flex items-center gap-1 shrink-0"
+            >
+              <PlusIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">Add</span>
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={companyToDelete}
+              onChange={(e) => setCompanyToDelete(e.target.value)}
+              className="w-full sm:w-auto px-2 py-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="">Select to Delete</option>
+              {companyNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleDeleteCompany}
+              disabled={!companyToDelete}
+              className="px-3 py-1 bg-red-600 text-white rounded-md flex items-center gap-1 shrink-0 disabled:opacity-50"
+            >
+              <TrashIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">Delete</span>
+            </button>
           </div>
         </div>
       </div>

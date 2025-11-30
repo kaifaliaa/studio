@@ -11,6 +11,7 @@ import { ArrowPathIcon } from '../components/icons/ArrowPathIcon';
 import { DENOMINATIONS } from '../constants';
 import { WalletIcon } from '../components/icons/WalletIcon';
 import TotalVaultDetails from '../components/TotalVaultDetails';
+import { DocumentArrowDownIcon } from '../components/icons/DocumentArrowDownIcon';
 
 const HistoryPage: React.FC = () => {
   const { transactions, deleteTransactionsByIds, companyNames, locations, manualSync, syncStatus, personNames, vault } = useAppContext();
@@ -187,6 +188,23 @@ const HistoryPage: React.FC = () => {
     }
   };
 
+  const exportToCSV = () => {
+    const headers = ['ID', 'Date', 'Person', 'Company', 'Location', 'Amount', 'Type', 'Payment Method', 'Recorded By'];
+    const rows = filteredTransactions.map(tx => 
+        [tx.id, tx.date, tx.person, tx.company, tx.location, tx.amount, tx.type, tx.paymentMethod, tx.recordedBy].join(',')
+    );
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `history_export_${new Date().toISOString()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     if (syncStatus === 'success' || syncStatus === 'error') {
       const timer = setTimeout(() => {
@@ -233,6 +251,10 @@ const HistoryPage: React.FC = () => {
           >
             <ArrowPathIcon className={`h-4 w-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
             {syncStatus === 'syncing' ? 'Syncing...' : 'Sync'}
+          </button>
+          <button onClick={exportToCSV} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2 text-sm font-medium">
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              Export CSV
           </button>
           <button onClick={handleDeleteClick} disabled={selectedIds.length === 0} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center gap-2 text-sm font-medium disabled:opacity-50">
               <TrashIcon className="h-4 w-4" />
