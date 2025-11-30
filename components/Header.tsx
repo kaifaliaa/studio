@@ -62,10 +62,6 @@ const Header: React.FC = () => {
                 <BookOpenIcon />
                 History
               </NavLink>
-              <NavLink to="/vault" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}>
-                <BuildingStorefrontIcon />
-                Vault
-              </NavLink>
               <NavLink to="/summary" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}>
                 <ChartBarIcon />
                 Summary
