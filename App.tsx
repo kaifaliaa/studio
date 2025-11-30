@@ -8,7 +8,6 @@ import BottomNavigation from './components/BottomNavigation';
 import LoginPage from './pages/LoginPage';
 import TransactionPage from './pages/TransactionPage';
 import HistoryPage from './pages/HistoryPage';
-import VaultPage from './pages/VaultPage';
 import SummaryPage from './pages/SummaryPage';
 import UserProfilePage from './pages/UserProfilePage';
 import CompanyHistoryPage from './pages/CompanyHistoryPage';
@@ -42,7 +41,6 @@ const App: React.FC = () => {
                       <Routes>
                         <Route path="/" element={<TransactionPage />} />
                         <Route path="/history" element={<HistoryPage />} />
-                        <Route path="/vault" element={<VaultPage />} />
                         <Route path="/summary" element={<SummaryPage />} />
                         <Route path="/profile" element={<UserProfilePage />} />
                         <Route path="/company/:companyName" element={<CompanyHistoryPage />} />

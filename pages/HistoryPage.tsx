@@ -1,17 +1,19 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { Transaction } from '../types';
+import { Transaction, NoteCounts } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { ChevronRightIcon } from '../components/icons/ChevronRightIcon';
 import { numberToWords } from '../utils/numberToWords';
 import { ArrowPathIcon } from '../components/icons/ArrowPathIcon';
-import { DocumentArrowDownIcon } from '../components/icons/DocumentArrowDownIcon';
+import { DENOMINATIONS } from '../constants';
+import { WalletIcon } from '../components/icons/WalletIcon';
+import TotalVaultDetails from '../components/TotalVaultDetails';
 
 const HistoryPage: React.FC = () => {
-  const { transactions, deleteTransactionsByIds, companyNames, locations, manualSync, syncStatus, personNames } = useAppContext();
+  const { transactions, deleteTransactionsByIds, companyNames, locations, manualSync, syncStatus, personNames, vault } = useAppContext();
   const location = useLocation();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,6 +27,7 @@ const HistoryPage: React.FC = () => {
   const [showAllDates, setShowAllDates] = useState(false);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isVaultModalOpen, setIsVaultModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -184,23 +187,6 @@ const HistoryPage: React.FC = () => {
     }
   };
 
-  const exportToCSV = () => {
-    const headers = ['ID', 'Date', 'Person', 'Company', 'Location', 'Amount', 'Type', 'Payment Method', 'Recorded By'];
-    const rows = filteredTransactions.map(tx => 
-        [tx.id, tx.date, tx.person, tx.company, tx.location, tx.amount, tx.type, tx.paymentMethod, tx.recordedBy].join(',')
-    );
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `history_export_${new Date().toISOString()}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   useEffect(() => {
     if (syncStatus === 'success' || syncStatus === 'error') {
       const timer = setTimeout(() => {
@@ -247,10 +233,6 @@ const HistoryPage: React.FC = () => {
           >
             <ArrowPathIcon className={`h-4 w-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
             {syncStatus === 'syncing' ? 'Syncing...' : 'Sync'}
-          </button>
-          <button onClick={exportToCSV} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2 text-sm font-medium">
-              <DocumentArrowDownIcon className="h-4 w-4" />
-              Export CSV
           </button>
           <button onClick={handleDeleteClick} disabled={selectedIds.length === 0} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center gap-2 text-sm font-medium disabled:opacity-50">
               <TrashIcon className="h-4 w-4" />
@@ -380,6 +362,13 @@ const HistoryPage: React.FC = () => {
             </div>
         </div>
       )}
+      
+      {isVaultModalOpen && (
+        <TotalVaultDetails
+          vault={vault}
+          onClose={() => setIsVaultModalOpen(false)}
+        />
+      )}
 
       {/* Totals bar */}
       <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-gray-200 dark:bg-gray-800 p-4 border-t-2 border-gray-300 dark:border-gray-700 flex justify-around text-center no-print">
@@ -396,6 +385,12 @@ const HistoryPage: React.FC = () => {
             <p className={`text-lg font-bold ${totals.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {currencyFormatter.format(totals.netBalance)}
             </p>
+        </div>
+        <div className="flex flex-col items-center justify-center">
+            <button onClick={() => setIsVaultModalOpen(true)} className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700">
+                <WalletIcon className="h-6 w-6" />
+            </button>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Total Vault</p>
         </div>
     </div>
     </div>

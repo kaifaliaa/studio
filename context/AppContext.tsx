@@ -16,8 +16,6 @@ interface AppContextType {
   addForwardEntry: (debitTransaction: Omit<Transaction, 'id'>, creditTransaction: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (updatedTransaction: Transaction & { manualDate?: string }) => Promise<void>;
   deleteTransactionsByIds: (ids: string[]) => Promise<void>;
-  addCompany: (companyName: string) => Promise<void>;
-  deleteCompany: (companyName: string) => Promise<void>;
   googleSheetsConnected: boolean;
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
   manualSync: () => Promise<void>;
@@ -399,15 +397,6 @@ useEffect(() => {
     })();
   }, [allTransactions, googleSheetsConnected]);
 
-  const addCompany = useCallback(async (companyName: string) => {
-    setCompanyNames(prev => [...prev, companyName].sort());
-  }, []);
-
-  const deleteCompany = useCallback(async (companyName: string) => {
-    setCompanyNames(prev => prev.filter(c => c !== companyName));
-  }, []);
-
-
   const clearLocalDB = useCallback(async () => {
     try {
       await localDB.clearTransactions();
@@ -431,8 +420,6 @@ useEffect(() => {
     addForwardEntry,
     updateTransaction,
     deleteTransactionsByIds,
-    addCompany,
-    deleteCompany,
     googleSheetsConnected,
     syncStatus,
     manualSync,

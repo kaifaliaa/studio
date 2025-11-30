@@ -2,7 +2,6 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { HomeIcon } from './icons/HomeIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
-import { WalletIcon } from './icons/WalletIcon';
 import { BookOpenIcon } from './icons/BookOpenIcon';
 import { UserIcon } from './icons/UserIcon';
 
@@ -21,12 +20,6 @@ const BottomNavigation: React.FC = () => {
       path: '/history',
       icon: BookOpenIcon,
       label: 'History'
-    },
-    {
-      name: 'Vault',
-      path: '/vault',
-      icon: WalletIcon,
-      label: 'Vault'
     },
     {
       name: 'Summary',
