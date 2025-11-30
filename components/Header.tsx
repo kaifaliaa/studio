@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { HomeIcon } from './icons/HomeIcon';
 import { BookOpenIcon } from './icons/BookOpenIcon';
-import { BuildingStorefrontIcon } from './icons/BuildingStorefrontIcon';
 import { ChartBarIcon } from './icons/ChartBarIcon';
 import { UserIcon } from './icons/UserIcon';
 
