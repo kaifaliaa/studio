@@ -51,12 +51,12 @@ const TransactionItem: React.FC<{
         <MinusCircleIcon className="h-8 w-8 text-red-500 flex-shrink-0" />
       )}
       <div className="flex-grow truncate">
-        <p className="font-semibold text-lg text-gray-800 dark:text-white truncate">{formatPersonName(person)}</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{formattedDate}</p>
+        <p className="text-sm text-gray-800 dark:text-white truncate">{formatPersonName(person)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{formattedDate}</p>
       </div>
       <div className="flex-shrink-0 flex items-center gap-2">
         <div className="text-right">
-            <p className={`text-xl font-bold ${
+            <p className={`text-lg ${
               amount < 0 ? 'text-red-600 dark:text-red-400' : 
               type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
@@ -344,17 +344,17 @@ const CompanyHistoryPage: React.FC = () => {
                 </Link>
               )}
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white w-full sm:w-auto text-center sm:text-left">
+          <h2 className="text-2xl text-gray-900 dark:text-white w-full sm:w-auto text-center sm:text-left">
             {decodedCompanyName} History
             {locationFilter && (
-              <span className="block text-sm font-normal text-blue-600 dark:text-blue-400 mt-1">
+              <span className="block text-xs font-normal text-blue-600 dark:text-blue-400 mt-1">
                 Filtered for location: {locationFilter}
               </span>
             )}
           </h2>
           <div className="flex justify-center sm:justify-end gap-2 w-full sm:w-auto">
               <button onClick={handleUpi} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <span className="font-bold">₹</span> Add UPI
+                  <span >₹</span> Add UPI
               </button>
               <button onClick={handleForwardEntry} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600">
                   Forward Entry
@@ -373,13 +373,31 @@ const CompanyHistoryPage: React.FC = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Credit (Cash+Other)</p><p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1 truncate">₹{filteredSummary.totalCredit.toLocaleString('en-IN')}</p></div><div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-full"><TrendingUpIcon className="h-6 w-6 text-green-600" /></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Debit</p><p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1 truncate">₹{filteredSummary.totalDebit.toLocaleString('en-IN')}</p><p className='text-xs text-gray-400'>{filteredTransactions.filter(t=>t.type==='debit').length} transactions</p></div><div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-full"><TrendingDownIcon className="h-6 w-6 text-red-600" /></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Net Balance</p><p className={`text-3xl font-bold mt-1 truncate ${filteredNetBalance >= 0 ? 'text-blue-600' : 'text-orange-500'}`}>₹{filteredNetBalance.toLocaleString('en-IN')}</p></div><div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full"><StarIcon className="h-6 w-6 text-blue-600" /></div></div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Cash Credit</p><p className="text-3xl font-bold text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalCashCredit.toLocaleString('en-IN')}</p></div><div className="bg-gray-100 dark:bg-gray-900/20 p-3 rounded-full"><WalletIcon className="h-6 w-6 text-gray-600" /></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered UPI Credit</p><p className="text-3xl font-bold text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalUpiCredit.toLocaleString('en-IN')}</p></div><div className="bg-gray-100 dark:bg-gray-900/20 p-3 rounded-full"><RupeeIcon className="h-6 w-6 text-gray-600" /></div></div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="text-center border-r border-gray-200 dark:border-gray-700 pr-4">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Credit</p>
+              <p class="text-2xl text-green-600 dark:text-green-400 mt-1 truncate">₹{filteredSummary.totalCredit.toLocaleString('en-IN')}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Debit</p>
+              <p class="text-2xl text-red-600 dark:text-red-400 mt-1 truncate">₹{filteredSummary.totalDebit.toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="text-center border-r border-gray-200 dark:border-gray-700 pr-4">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Cash</p>
+              <p class="text-2xl text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalCashCredit.toLocaleString('en-IN')}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">UPI</p>
+              <p class="text-2xl text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalUpiCredit.toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div class='truncate'><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Filtered Net Balance</p><p className={`text-2xl mt-1 truncate ${filteredNetBalance >= 0 ? 'text-blue-600' : 'text-orange-500'}`}>₹{filteredNetBalance.toLocaleString('en-IN')}</p></div><div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full"><StarIcon className="h-6 w-6 text-blue-600" /></div></div>
       </div>
 
       {/* Filter Section */}
@@ -438,7 +456,7 @@ const CompanyHistoryPage: React.FC = () => {
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Confirm Deletion</h3>
+                <h3 className="text-lg text-gray-900 dark:text-white">Confirm Deletion</h3>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                     Are you sure you want to delete the selected <strong>{selectedIds.length}</strong> transaction(s) for <strong>{decodedCompanyName}</strong>? This will also update the cash vault for any cash transactions and cannot be undone.
                 </p>

@@ -6,7 +6,6 @@ import { TrashIcon } from '../components/icons/TrashIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { ChevronRightIcon } from '../components/icons/ChevronRightIcon';
-import { numberToWords } from '../utils/numberToWords';
 import { ArrowPathIcon } from '../components/icons/ArrowPathIcon';
 import { DENOMINATIONS } from '../constants';
 import { WalletIcon } from '../components/icons/WalletIcon';
@@ -188,23 +187,6 @@ const HistoryPage: React.FC = () => {
     }
   };
 
-  const exportToCSV = () => {
-    const headers = ['ID', 'Date', 'Person', 'Company', 'Location', 'Amount', 'Type', 'Payment Method', 'Recorded By'];
-    const rows = filteredTransactions.map(tx => 
-        [tx.id, tx.date, tx.person, tx.company, tx.location, tx.amount, tx.type, tx.paymentMethod, tx.recordedBy].join(',')
-    );
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `history_export_${new Date().toISOString()}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   useEffect(() => {
     if (syncStatus === 'success' || syncStatus === 'error') {
       const timer = setTimeout(() => {
@@ -229,7 +211,7 @@ const HistoryPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto pb-32 md:pb-24">
       <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Transaction History</h2>
+        <h2 className="text-3xl text-gray-900 dark:text-white">Transaction History</h2>
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -251,10 +233,6 @@ const HistoryPage: React.FC = () => {
           >
             <ArrowPathIcon className={`h-4 w-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
             {syncStatus === 'syncing' ? 'Syncing...' : 'Sync'}
-          </button>
-          <button onClick={exportToCSV} className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2 text-sm font-medium">
-              <DocumentArrowDownIcon className="h-4 w-4" />
-              Export CSV
           </button>
           <button onClick={handleDeleteClick} disabled={selectedIds.length === 0} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center gap-2 text-sm font-medium disabled:opacity-50">
               <TrashIcon className="h-4 w-4" />
@@ -322,10 +300,10 @@ const HistoryPage: React.FC = () => {
                 <div className="flex-grow cursor-pointer" onClick={() => toggleTransactionDetails(tx.id)}>
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg text-gray-900 dark:text-white">{formatPersonName(tx.person)}</h3>
+                      <h3 className="text-lg text-gray-900 dark:text-white">{formatPersonName(tx.person)}</h3>
                       <div className="text-sm text-gray-500 dark:text-gray-400">{new Date(tx.date).toLocaleString('en-IN')}</div>
                     </div>
-                    <div className={`text-xl font-bold ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className={`text-xl ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
                       {tx.type === 'credit' ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
                     </div>
                     <div className="ml-4 text-gray-400">
@@ -342,9 +320,7 @@ const HistoryPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><strong>Company:</strong> {tx.company || 'N/A'}</div>
                         <div><strong>Location:</strong> {tx.location}</div>
-                        <div><strong>Recorded By:</strong> {tx.recordedBy.replace('@gmail.com', '')}</div>
                     </div>
-                    <div className="italic">In Words: {numberToWords(tx.amount)}</div>
                     {tx.breakdown && Object.keys(tx.breakdown).length > 0 && (
                       <div>
                         <h4 className="font-semibold mb-2">Denomination Breakdown:</h4>
@@ -374,7 +350,7 @@ const HistoryPage: React.FC = () => {
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" role="dialog">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h3 className="text-lg font-bold">Confirm Deletion</h3>
+                <h3 className="text-lg">Confirm Deletion</h3>
                 <p className="mt-2 text-sm">Are you sure you want to delete <strong>{selectedIds.length}</strong> transaction(s)? This action cannot be undone.</p>
                 {deleteError && <div className="mt-4 text-red-600">{deleteError}</div>}
                 <div className="mt-6 flex justify-end gap-4">
@@ -396,15 +372,15 @@ const HistoryPage: React.FC = () => {
       <div className="fixed bottom-16 md:bottom-0 left-0 right-0 bg-gray-200 dark:bg-gray-800 p-4 border-t-2 border-gray-300 dark:border-gray-700 flex justify-around text-center no-print">
          <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Total In</p>
-            <p className="text-lg font-bold text-green-600">{currencyFormatter.format(totals.totalCredit)}</p>
+            <p className="text-lg text-green-600">{currencyFormatter.format(totals.totalCredit)}</p>
         </div>
         <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Total Out</p>
-            <p className="text-lg font-bold text-red-600">{currencyFormatter.format(totals.totalDebit)}</p>
+            <p className="text-lg text-red-600">{currencyFormatter.format(totals.totalDebit)}</p>
         </div>
         <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
-            <p className={`text-lg font-bold ${totals.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`text-lg ${totals.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {currencyFormatter.format(totals.netBalance)}
             </p>
         </div>

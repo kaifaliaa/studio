@@ -23,12 +23,6 @@ const BottomNavigation: React.FC = () => {
       label: 'History'
     },
     {
-      name: 'Vault',
-      path: '/vault',
-      icon: WalletIcon,
-      label: 'Vault'
-    },
-    {
       name: 'Summary',
       path: '/summary',
       icon: ChartBarIcon,
