@@ -211,32 +211,29 @@ const HistoryPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto pb-32 md:pb-24">
       <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
-        <h2 className="text-3xl text-gray-900 dark:text-white">Transaction History</h2>
-        <div className="flex items-center gap-3 flex-wrap">
+        <h2 className="text-3xl text-gray-900 dark:text-white">History</h2>
+        <div className="flex items-center gap-4 flex-wrap">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-2 rounded-md transition-colors text-sm font-medium ${
+            className={`p-2 rounded-md transition-colors font-medium ${
               showFilters 
                 ? 'bg-blue-600 text-white hover:bg-blue-700' 
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
             }`}
           >
-            <FilterIcon className="h-4 w-4 mr-2 inline" />
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
+            <FilterIcon className="h-5 w-5" />
           </button>
           <button
             onClick={handleSync}
             disabled={syncStatus === 'syncing'}
-            className={`px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all text-sm font-medium ${
+            className={`p-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-all font-medium ${
               syncStatus === 'syncing' ? 'animate-pulse' : ''
             }`}
           >
-            <ArrowPathIcon className={`h-4 w-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
-            {syncStatus === 'syncing' ? 'Syncing...' : 'Sync'}
+            <ArrowPathIcon className={`h-5 w-5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
           </button>
-          <button onClick={handleDeleteClick} disabled={selectedIds.length === 0} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center gap-2 text-sm font-medium disabled:opacity-50">
-              <TrashIcon className="h-4 w-4" />
-              Delete ({selectedIds.length})
+          <button onClick={handleDeleteClick} disabled={selectedIds.length === 0} className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center font-medium disabled:opacity-50">
+              <TrashIcon className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -253,7 +250,7 @@ const HistoryPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Companies</option>{companyNames.map(name => <option key={name} value={name}>{name}</option>)}</select>
                 <select value={filterLocation} onChange={e => setFilterLocation(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Locations</option>{locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}</select>
-                <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select>
+                <select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gamma-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select>
                 <select value={filterRecorder} onChange={e => setFilterRecorder(e.target.value)} className="w-full p-2 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Recorders</option>{recorderNames.map(name => <option key={name} value={name}>{name.replace('@gmail.com', '')}</option>)}</select>
             </div>
             <div className="flex items-center gap-4">

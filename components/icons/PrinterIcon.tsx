@@ -1,7 +1,9 @@
 import React from 'react';
 
 export const PrinterIcon: React.FC<{className?: string}> = ({ className = "h-5 w-5" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6 18.25m0 0a2.25 2.25 0 01-2.25 2.25m2.25-2.25a2.25 2.25 0 002.25 2.25m-2.25 2.25V15m14.25-6.171c-.24.03-.48.062-.72.096m.72-.096c-1.35.216-2.863.321-4.47.321s-3.12-.105-4.47-.321m10.56 0L18 18.25m0 0a2.25 2.25 0 01-2.25 2.25m2.25-2.25a2.25 2.25 0 002.25 2.25m-2.25 2.25V15m-1.125-6.375A42.227 42.227 0 0012 5.625a42.227 42.227 0 00-6.375 1.5" />
-  </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className}>
+        <path fill="#90A4AE" d="M19,8H5C3.34,8,2,9.34,2,11v6h4v4h12v-4h4v-6C22,9.34,20.66,8,19,8z M17,19H7v-5h10V19z M19,12c-0.55,0-1-0.45-1-1 s0.45-1,1-1s1,0.45,1,1S19.55,12,19,12z"/>
+        <rect fill="#42A5F5" width="12" height="5" x="6" y="2"/>
+        <rect fill="#42A5F5" width="12" height="4" x="6" y="14"/>
+    </svg>
 );

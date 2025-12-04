@@ -354,19 +354,19 @@ const CompanyHistoryPage: React.FC = () => {
           </h2>
           <div className="flex justify-center sm:justify-end gap-2 w-full sm:w-auto">
               <button onClick={handleUpi} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <span >₹</span> Add UPI
+                  <span >₹</span> UPI
               </button>
               <button onClick={handleForwardEntry} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600">
-                  Forward Entry
+                  Forward
               </button>
               <button onClick={handleNewDebit} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-red-600 text-white hover:bg-red-700">
-                  Add Debit
+                  Debit
               </button>
               <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <PrinterIcon className="h-4 w-4" /> Print
+                  <PrinterIcon className="h-5 w-5" />
               </button>
               <button onClick={handleDeleteClick} disabled={selectedIds.length === 0} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <TrashIcon className="h-4 w-4" /> Delete ({selectedIds.length})
+                  <TrashIcon className="h-5 w-5" />
               </button>
           </div>
       </header>
