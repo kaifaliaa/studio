@@ -3,7 +3,6 @@ import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
-import { ShareIcon } from '../components/icons/ShareIcon';
 
 const ReportPage: React.FC = () => {
     const { companyName } = useParams<{ companyName: string }>();
@@ -37,31 +36,6 @@ const ReportPage: React.FC = () => {
             document.title = originalTitle;
         };
     }, [decodedCompanyName]);
-
-    const handleShare = async () => {
-        const reportText = `Report for ${decodedCompanyName}
-Generated on: ${formattedDate(generationDate)}
-Filters: ${getFilterDescription()}
-
-Total Credit: ${currencyFormatter.format(reportData?.totalCredit || 0)}
-Total Debit: ${currencyFormatter.format(reportData?.totalDebit || 0)}
-Closing Balance: ${currencyFormatter.format(reportData?.closingBalance || 0)}
-`;
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `Report for ${decodedCompanyName}`,
-                    text: reportText,
-                    url: window.location.href,
-                });
-            } catch (error) {
-                console.error('Error sharing:', error);
-            }
-        } else {
-            alert('Web Share API is not supported in your browser.');
-        }
-    };
     
     const companyTransactions = useMemo(() => {
         let filtered = transactions.filter(tx => (tx.company || 'NA') === decodedCompanyName);
@@ -178,13 +152,10 @@ Closing Balance: ${currencyFormatter.format(reportData?.closingBalance || 0)}
 
     return (
         <div className="bg-white p-2 sm:p-4 md:p-6 lg:p-8 print-container min-w-0">
-             <div className="no-print mb-4 flex justify-between">
+             <div className="no-print mb-4">
                 <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
                     <ArrowLeftIcon className="h-5 w-5"/><span>Back to History</span>
                 </Link>
-                <button onClick={handleShare} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
-                    <ShareIcon className="h-5 w-5"/><span>Share</span>
-                </button>
              </div>
              <div className="text-center mb-2 sm:mb-4">
                  <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-black uppercase">Report for {decodedCompanyName}</h1>
