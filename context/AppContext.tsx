@@ -1,30 +1,31 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { Transaction, NoteCounts } from '../types';
 import { COMPANY_NAMES as defaultCompanyNames, LOCATIONS, DENOMINATIONS } from '../constants';
 import { googleSheets } from '../services/googleSheets';
-import { useAuth, User } from './AuthContext'; // Import the useAuth hook
+import { useAuth, User } from './AuthContext';
+import { localDB } from '../services/LocalDBService';
 
-// Define the shape of the context
 interface AppContextType {
   user: User | null;
   transactions: Transaction[];
   vault: NoteCounts;
   companyNames: string[];
   locations: string[];
-  addTransaction: (newTransaction: Omit<Transaction, 'id'>) => Promise<void>;
-  updateTransaction: (updatedTransaction: Transaction) => Promise<void>;
+  personNames: string[];
+  addTransaction: (newTransaction: Omit<Transaction, 'id'> & { manualDate?: string }) => Promise<void>;
+  addForwardEntry: (debitTransaction: Omit<Transaction, 'id'>, creditTransaction: Omit<Transaction, 'id'>) => Promise<void>;
+  updateTransaction: (updatedTransaction: Transaction & { manualDate?: string }) => Promise<void>;
   deleteTransactionsByIds: (ids: string[]) => Promise<void>;
   addCompany: (companyName: string) => Promise<void>;
   deleteCompany: (companyName: string) => Promise<void>;
   googleSheetsConnected: boolean;
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
   manualSync: () => Promise<void>;
+  clearLocalDB: () => Promise<void>;
 }
 
-// Create the context with a default undefined value
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Custom hook to use the context
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (!context) {
@@ -33,7 +34,6 @@ export const useAppContext = () => {
   return context;
 };
 
-// The provider component
 interface AppProviderProps {
   children: ReactNode;
 }
@@ -44,39 +44,54 @@ const initializeVault = (): NoteCounts => {
     return freshVault;
 };
 
+const generateUniqueTransactionId = (): string => {
+  const timestamp = new Date().getTime();
+  const randomPart = Math.random().toString(36).substring(2, 9);
+  return `txn_${timestamp}_${randomPart}`;
+}
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  const { currentUser } = useAuth(); // Get the current user from AuthContext
+  const { currentUser } = useAuth();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [companyNames, setCompanyNames] = useState<string[]>(defaultCompanyNames);
   const [vault, setVault] = useState<NoteCounts>(() => initializeVault());
   const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
-  // Filter transactions by current user for privacy
-  const transactions = allTransactions.filter(tx => {
-    if (!currentUser) return false;
-    const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
-    const txRecordedBy = tx.recordedBy.replace('@gmail.com', '');
-    const simplifiedCurrentUserName = currentUserName.replace('@gmail.com', '');
-    return txRecordedBy.toLowerCase() === simplifiedCurrentUserName.toLowerCase();
-  });
-
-  // Recalculate vault based on current user's transactions only
-  const recalculateVault = useCallback((transactions: Transaction[], currentUserName?: string) => {
-    const newVault = initializeVault();
-    
-    // If no user name provided, get current user
-    if (!currentUserName) {
-        if(currentUser) {
-            currentUserName = currentUser?.displayName || currentUser?.email || 'Unknown User';
-        }
+  const transactions = useMemo(() => {
+    if (!currentUser) {
+      return [];
     }
+
+    if (currentUser.email && currentUser.email.toUpperCase() === 'A@GMAIL.COM') {
+      return allTransactions;
+    }
+
+    const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
+    const simplifiedCurrentUserName = currentUserName.replace('@gmail.com', '').toLowerCase();
     
-    // Only process transactions for the current user
-    const userTransactions = transactions.filter(tx => tx.recordedBy === currentUserName);
-    
-    userTransactions.forEach(tx => {
+    return allTransactions.filter(tx => {
+      const txRecordedBy = (tx.recordedBy || '').replace('@gmail.com', '').toLowerCase();
+      return txRecordedBy === simplifiedCurrentUserName;
+    });
+  }, [allTransactions, currentUser]);
+
+  const personNames = useMemo(() => {
+    const names = new Set(transactions.map(tx => tx.person).filter(Boolean) as string[]);
+    return Array.from(names).sort();
+  }, [transactions]);
+
+  const recalculateVault = useCallback((transactionsToProcess: Transaction[]) => {
+    const newVault = initializeVault();
+    let transactionsForVault = transactionsToProcess;
+
+    if (currentUser && currentUser.email && currentUser.email.toUpperCase() !== 'A@GMAIL.COM') {
+      const currentUserName = (currentUser.displayName || currentUser.email) || 'Unknown User';
+      transactionsForVault = transactionsToProcess.filter(tx => tx.recordedBy === currentUserName);
+    }
+
+    transactionsForVault.forEach(tx => {
       if (tx.paymentMethod === 'cash' && tx.breakdown && typeof tx.breakdown === 'object') {
         for (const denomStr in tx.breakdown) {
           const denom = parseInt(denomStr, 10);
@@ -91,185 +106,104 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         }
       }
     });
-    
     return newVault;
   }, [currentUser]);
 
-  // Load data from localStorage on initial render
-  useEffect(() => {
-    if(!currentUser) return; // Wait for user to be loaded
+  const manualSync = useCallback(async () => {
+    if (!currentUser) return;
+
+    setSyncStatus('syncing');
     try {
-      // --- ROBUST TRANSACTIONS MIGRATION ---
-      const storedTransactions = localStorage.getItem('transactions');
-      let finalTransactions: Transaction[] = [];
-      if (storedTransactions) {
-        let parsedTransactions: any[] = JSON.parse(storedTransactions);
-
-        if (Array.isArray(parsedTransactions)) {
-            finalTransactions = parsedTransactions
-            .map((tx: any): Transaction | null => {
-              // Very defensive migration for each transaction
-              if (!tx || typeof tx !== 'object' || !tx.id || typeof tx.id !== 'string') {
-                  return null; // Discard invalid entry
-              }
-
-              const migratedTx: any = {};
-              
-              migratedTx.id = tx.id;
-              migratedTx.type = ['credit', 'debit'].includes(tx.type) ? tx.type : 'credit';
-              migratedTx.paymentMethod = ['cash', 'upi'].includes(tx.paymentMethod) ? tx.paymentMethod : 'cash';
-              migratedTx.amount = typeof tx.amount === 'number' && isFinite(tx.amount) ? tx.amount : 0;
-              migratedTx.date = (tx.date && !isNaN(new Date(tx.date).getTime())) ? tx.date : new Date().toISOString();
-              migratedTx.location = typeof tx.location === 'string' ? tx.location : 'NA';
-              migratedTx.company = typeof tx.company === 'string' ? tx.company : 'NA';
-              migratedTx.person = typeof tx.person === 'string' ? tx.person : '';
-              migratedTx.recordedBy = typeof tx.recordedBy === 'string' ? tx.recordedBy : 'system';
-              migratedTx.notes = typeof tx.notes === 'string' ? tx.notes : '';
-
-              // Sanitize breakdown: This is CRITICAL
-              const sanitizedBreakdown: NoteCounts = {};
-              if (migratedTx.paymentMethod === 'cash' && tx.breakdown && typeof tx.breakdown === 'object') {
-                  DENOMINATIONS.forEach(denom => {
-                      const count = tx.breakdown[denom];
-                      if (typeof count === 'number' && isFinite(count) && count >= 0) {
-                          sanitizedBreakdown[denom] = Math.floor(count); // Ensure it's an integer
-                      }
-                  });
-              }
-              migratedTx.breakdown = sanitizedBreakdown;
-              
-              return migratedTx as Transaction;
-          })
-          .filter((tx): tx is Transaction => tx !== null); // Filter out discarded entries
-        }
-      }
-      setAllTransactions(finalTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      
-      // --- ROBUST VAULT MIGRATION ---
-      const storedVault = localStorage.getItem('vault');
-      let finalVault = initializeVault();
-      if (storedVault) {
-        const parsedVault = JSON.parse(storedVault);
-        if (parsedVault && typeof parsedVault === 'object' && !Array.isArray(parsedVault)) {
-           const sanitizedVault = initializeVault();
-           DENOMINATIONS.forEach(denom => {
-              const count = parsedVault[denom];
-              // Allow negative counts for vault (debits can make vault negative)
-              if(typeof count === 'number' && isFinite(count)) {
-                sanitizedVault[denom] = Math.floor(count);
-              }
-           });
-           finalVault = sanitizedVault;
-        }
-      }
-       setVault(finalVault);
-
-    // Check Google Apps Script connection and load existing data
-    const checkGoogleSheetsConnection = async () => {
-      try {
-        console.log('🔄 Starting Google Sheets connection check...');
-        setSyncStatus('syncing');
-        
-        // Test connection to Google Apps Script
-        console.log('📡 Testing connection to Google Apps Script...');
+        console.log('🔄 Starting manual sync with Google Sheets...');
         const isConnected = await googleSheets.testConnection();
-        console.log('📡 Connection test result:', isConnected);
-        
         if (isConnected) {
-          console.log('✅ Google Apps Script connected successfully');
-          // Try to initialize the sheet
-          console.log('🔧 Initializing Google Sheets...');
-          await googleSheets.initializeSheet();
-          setGoogleSheetsConnected(true);
-          
-          // Load all existing transactions from Google Sheets
-          console.log('📥 Loading existing transactions from Google Sheets...');
-          const sheetTransactions = await googleSheets.getAllTransactions();
-          console.log('📥 Loaded', sheetTransactions.length, 'transactions from Google Sheets');
-          
-          if (sheetTransactions.length > 0) {
-            console.log('🔄 Merging sheet transactions with local transactions...');
-            // Merge with local transactions, giving priority to sheet data
-            const mergedTransactions = [...sheetTransactions];
-            // Add any local transactions that don't exist in sheets
-            finalTransactions.forEach(localTx => {
-              if (!sheetTransactions.find(sheetTx => sheetTx.id === localTx.id)) {
-                console.log('➕ Adding local transaction not found in sheets:', localTx.id);
-                mergedTransactions.push(localTx);
-              }
-            });
-            console.log('📊 Final merged transaction count:', mergedTransactions.length);
-            setAllTransactions(mergedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-            
-            // Recalculate vault based on all transactions
-            console.log('🧮 Recalculating vault from all transactions...');
-            const recalculatedVault = recalculateVault(mergedTransactions);
-            setVault(recalculatedVault);
-            console.log('🧮 Vault recalculated:', recalculatedVault);
-          } else {
-            console.log('ℹ️ No transactions found in Google Sheets, keeping local transactions');
-            // If sheets has no data, check if we should upload local transactions
-            if (finalTransactions.length > 0) {
-              console.log('📤 Uploading', finalTransactions.length, 'local transactions to Google Sheets...');
-              for (const tx of finalTransactions) {
-                try {
-                  await googleSheets.addTransaction(tx);
-                  console.log('✅ Uploaded transaction:', tx.id);
-                } catch (error) {
-                  console.warn('⚠️ Failed to upload transaction:', tx.id, error);
+            setGoogleSheetsConnected(true);
+
+            const localTransactions = await localDB.getTransactions();
+            console.log(`💿 Loaded ${localTransactions.length} local transactions for sync.`);
+
+            const sheetTransactions = await googleSheets.getAllTransactions();
+            console.log(`📥 Fetched ${sheetTransactions.length} transactions from sheets.`);
+
+            const sheetTxMap = new Map(sheetTransactions.map(tx => [tx.id, tx]));
+
+            // Upload local transactions that are not in sheets
+            for (const localTx of localTransactions) {
+                if (!sheetTxMap.has(localTx.id)) {
+                    console.log(`📤 Uploading new local transaction ${localTx.id} to Google Sheets.`);
+                    await googleSheets.addTransaction(localTx);
                 }
-              }
-              
-              // Recalculate vault for local transactions too
-              console.log('🧮 Recalculating vault from local transactions...');
-              const recalculatedVault = recalculateVault(finalTransactions);
-              setVault(recalculatedVault);
-              console.log('🧮 Vault recalculated:', recalculatedVault);
             }
-          }
-          
-          setSyncStatus('success');
-          console.log('✅ Google Sheets initialization completed successfully');
+
+            // After uploading, get the final state from Google Sheets
+            console.log('📥 Fetching final transaction list from Google Sheets...');
+            const finalSheetTransactions = await googleSheets.getAllTransactions();
+
+            const finalSorted = finalSheetTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            console.log(`📊 Final merged transaction count: ${finalSorted.length}`);
+            setAllTransactions(finalSorted);
+            await localDB.clearAndRepopulateTransactions(finalSorted);
+            console.log('💿 Local database updated with final transactions.');
+
+            const recalculatedVault = recalculateVault(finalSorted);
+            setVault(recalculatedVault);
+            console.log('✅ Vault recalculated after sync.');
+
+            setSyncStatus('success');
+            console.log('✅ Manual sync completed successfully.');
         } else {
-          setGoogleSheetsConnected(false);
-          setSyncStatus('error');
-          console.warn('❌ Google Apps Script connection failed');
+            setGoogleSheetsConnected(false);
+            setSyncStatus('error');
+            console.warn('❌ Google Sheets connection failed. Operating in offline mode.');
         }
-      } catch (error) {
+    } catch (error) {
         setGoogleSheetsConnected(false);
         setSyncStatus('error');
-        console.error('💥 Google Apps Script connection failed:', error);
-      }
+        console.error('💥 Manual sync failed:', error);
+    }
+}, [currentUser, recalculateVault]);
+
+useEffect(() => {
+    if (!currentUser) return;
+
+    // On initial load, fetch data from Google Sheets to ensure data is fresh
+    const initialLoad = async () => {
+        setSyncStatus('syncing');
+        try {
+            console.log('🔄 Initializing app and fetching data from Google Sheets...');
+            const isConnected = await googleSheets.testConnection();
+            if (isConnected) {
+                setGoogleSheetsConnected(true);
+                const sheetTransactions = await googleSheets.getAllTransactions();
+                const sortedTransactions = sheetTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                
+                setAllTransactions(sortedTransactions);
+                await localDB.clearAndRepopulateTransactions(sortedTransactions);
+                console.log(`✅ Loaded and synced ${sortedTransactions.length} transactions from Google Sheets.`);
+
+                const recalculatedVault = recalculateVault(sortedTransactions);
+                setVault(recalculatedVault);
+                console.log('✅ Vault recalculated on initial load.');
+
+                setSyncStatus('success');
+            } else {
+                // If offline, load from local DB
+                console.warn('❌ Google Sheets connection failed. Loading from local DB.');
+                setGoogleSheetsConnected(false);
+                const localTransactions = await localDB.getTransactions();
+                const sortedTransactions = localTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                setAllTransactions(sortedTransactions);
+                setSyncStatus('idle');
+            }
+        } catch (error) {
+            setGoogleSheetsConnected(false);
+            setSyncStatus('error');
+            console.error("CRITICAL: Failed to load initial data.", error);
+        }
     };
 
-    checkGoogleSheetsConnection();
-
-    } catch (error) {
-      console.error("CRITICAL: Corrupted localStorage data detected. Resetting application state.", error);
-      // If anything fails, wipe the slate clean to prevent crash loops
-      localStorage.removeItem('transactions');
-      localStorage.removeItem('vault');
-      setAllTransactions([]);
-      setVault(initializeVault());
-    }
-  }, [currentUser, recalculateVault]);
-
-  // Save data to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem('transactions', JSON.stringify(allTransactions));
-    } catch (error) {
-      console.error("Failed to save transactions to localStorage", error);
-    }
-  }, [allTransactions]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('vault', JSON.stringify(vault));
-    } catch (error) {
-      console.error("Failed to save vault to localStorage", error);
-    }
-  }, [vault]);
+    initialLoad();
+}, [currentUser, recalculateVault]);
 
   useEffect(() => {
     try {
@@ -278,152 +212,192 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       console.error("Failed to save company names to localStorage", error);
     }
   }, [companyNames]);
-  
 
-  const addTransaction = useCallback(async (newTransactionData: Omit<Transaction, 'id'>) => {
-    const newTransaction: Transaction = {
-      ...newTransactionData,
-      id: `txn_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`,
-      date: newTransactionData.manualDate ? new Date(newTransactionData.manualDate).toISOString() : new Date().toISOString(),
-    };
-
-    // Save to local state first
-    setAllTransactions(prev => [...prev, newTransaction].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    
-    // Update vault for cash transactions
-    if (newTransaction.paymentMethod === 'cash' && newTransaction.breakdown) {
-        setVault(prevVault => {
-            const updatedVault = { ...prevVault };
-            for(const denom in newTransaction.breakdown) {
-                const denomNum = parseInt(denom, 10);
-                const count = newTransaction.breakdown[denomNum];
-                
-                if (newTransaction.type === 'credit') {
-                    // Add to vault for credit
-                    updatedVault[denomNum] = (updatedVault[denomNum] || 0) + count;
-                } else if (newTransaction.type === 'debit') {
-                    // Subtract from vault for debit (can go negative)
-                    updatedVault[denomNum] = (updatedVault[denomNum] || 0) - count;
-                }
-            }
-            return updatedVault;
-        });
+  const addTransaction = useCallback(async (newTransactionData: Omit<Transaction, 'id'> & { manualDate?: string }) => {
+    if (isSubmitting) {
+      console.warn("Submission in progress. Please wait.");
+      return;
     }
 
-    // Save to Google Sheets (async, non-blocking)
     try {
-      setSyncStatus('syncing');
-      console.log('🔄 Attempting to sync transaction to Google Sheets:', newTransaction.id);
-      const success = await googleSheets.addTransaction(newTransaction);
-      if (success) {
-        setSyncStatus('success');
-        console.log('✅ Transaction synced to Google Sheets:', newTransaction.id);
-      } else {
-        setSyncStatus('error');
-        console.error('❌ Failed to sync transaction to Google Sheets (returned false):', newTransaction.id);
+      setIsSubmitting(true);
+      const transactionDate = newTransactionData.manualDate || newTransactionData.date;
+      const newTransaction: Transaction = {
+        ...newTransactionData,
+        id: generateUniqueTransactionId(),
+        date: transactionDate ? new Date(transactionDate).toISOString() : new Date().toISOString(),
+      };
+
+      setAllTransactions(prev => [newTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+      if (newTransaction.paymentMethod === 'cash' && newTransaction.breakdown) {
+          setVault(prevVault => {
+              const updatedVault = { ...prevVault };
+              for (const denom in newTransaction.breakdown) {
+                  const denomNum = parseInt(denom, 10);
+                  const count = newTransaction.breakdown[denomNum];
+                  if (newTransaction.type === 'credit') updatedVault[denomNum] += count;
+                  else if (newTransaction.type === 'debit') updatedVault[denomNum] -= count;
+              }
+              return updatedVault;
+          });
       }
-    } catch (error) {
-      setSyncStatus('error');
-      console.error('💥 Failed to sync to Google Sheets:', error);
-      // Reset to idle after 3 seconds
-      setTimeout(() => setSyncStatus('idle'), 3000);
-    }
-  }, []);
 
-  const updateTransaction = useCallback(async (updatedTransaction: Transaction) => {
-    setVault(prevVault => {
-        const originalTransaction = transactions.find(tx => tx.id === updatedTransaction.id);
-        if (!originalTransaction) {
-            console.error("Original transaction not found for vault update.");
-            return prevVault;
+      (async () => {
+        try {
+          await localDB.saveTransaction(newTransaction);
+          if (googleSheetsConnected) {
+            setSyncStatus('syncing');
+            const success = await googleSheets.addTransaction(newTransaction);
+            setSyncStatus(success ? 'success' : 'error');
+          }
+        } catch (error) {
+          setSyncStatus('error');
+          console.error(`Failed to save or sync transaction ${newTransaction.id}:`, error);
         }
+      })();
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      setSyncStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, allTransactions, googleSheetsConnected]);
 
+  const addForwardEntry = useCallback(async (debitTransaction: Omit<Transaction, 'id'>, creditTransaction: Omit<Transaction, 'id'>) => {
+    if (isSubmitting) {
+      console.warn("Submission in progress. Please wait.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const newDebitTransaction: Transaction = {
+        ...debitTransaction,
+        id: generateUniqueTransactionId(),
+      };
+
+      const newCreditTransaction: Transaction = {
+        ...creditTransaction,
+        id: generateUniqueTransactionId(),
+      };
+
+      setAllTransactions(prev => [newDebitTransaction, newCreditTransaction, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+      // No vault changes for forward entry as it is net zero
+
+      (async () => {
+        try {
+          await localDB.saveTransaction(newDebitTransaction);
+          await localDB.saveTransaction(newCreditTransaction);
+          if (googleSheetsConnected) {
+            setSyncStatus('syncing');
+            await googleSheets.addTransaction(newDebitTransaction);
+            await googleSheets.addTransaction(newCreditTransaction);
+            setSyncStatus('success');
+          }
+        } catch (error) {
+          setSyncStatus('error');
+          console.error(`Failed to save or sync forward entry:`, error);
+        }
+      })();
+    } catch (error) {
+      console.error("Error adding forward entry:", error);
+      setSyncStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, allTransactions, googleSheetsConnected]);
+
+  const updateTransaction = useCallback(async (updatedTransaction: Transaction & { manualDate?: string }) => {
+    // UI Update First
+    if (updatedTransaction.manualDate) {
+      updatedTransaction.date = new Date(updatedTransaction.manualDate).toISOString();
+    }
+    const originalTransaction = allTransactions.find(tx => tx.id === updatedTransaction.id);
+    setAllTransactions(prev => prev.map(tx => tx.id === updatedTransaction.id ? updatedTransaction : tx).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    // Vault update
+    setVault(prevVault => {
         const newVault = { ...prevVault };
-        
-        // Revert old transaction's vault impact
-        if (originalTransaction.paymentMethod === 'cash' && originalTransaction.breakdown) {
+        if (originalTransaction && originalTransaction.paymentMethod === 'cash' && originalTransaction.breakdown) {
             for (const denomStr in originalTransaction.breakdown) {
-                const denom = parseInt(denomStr, 10);
-                if (DENOMINATIONS.includes(denom)) {
-                    const count = originalTransaction.breakdown[denom] || 0;
-                    if (originalTransaction.type === 'credit') {
-                        newVault[denom] = (newVault[denom] || 0) - count;
-                    } else if (originalTransaction.type === 'debit') {
-                        newVault[denom] = (newVault[denom] || 0) + count;
-                    }
-                }
+                const denom = parseInt(denomStr, 10); const count = originalTransaction.breakdown[denom] || 0;
+                if (originalTransaction.type === 'credit') newVault[denom] -= count;
+                else if (originalTransaction.type === 'debit') newVault[denom] += count;
             }
         }
-
-        // Apply new transaction's vault impact
         if (updatedTransaction.paymentMethod === 'cash' && updatedTransaction.breakdown) {
             for (const denomStr in updatedTransaction.breakdown) {
-                const denom = parseInt(denomStr, 10);
-                if (DENOMINATIONS.includes(denom)) {
-                    const count = updatedTransaction.breakdown[denom] || 0;
-                    if (updatedTransaction.type === 'credit') {
-                        newVault[denom] = (newVault[denom] || 0) + count;
-                    } else if (updatedTransaction.type === 'debit') {
-                        newVault[denom] = (newVault[denom] || 0) - count;
-                    }
-                }
+                const denom = parseInt(denomStr, 10); const count = updatedTransaction.breakdown[denom] || 0;
+                if (updatedTransaction.type === 'credit') newVault[denom] += count;
+                else if (updatedTransaction.type === 'debit') newVault[denom] -= count;
             }
         }
-
         return newVault;
     });
 
-    setAllTransactions(prevTransactions => {
-        const updatedTransactions = prevTransactions.map(tx => 
-            tx.id === updatedTransaction.id ? updatedTransaction : tx
-        );
-        return updatedTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    });
+    // Persist and Sync in Background
+    (async () => {
+      try {
+        await localDB.saveTransaction(updatedTransaction);
+        console.log(`✅ Transaction ${updatedTransaction.id} updated locally.`);
 
-    // Update in Google Sheets (async, non-blocking)
-    try {
-      await googleSheets.updateTransaction(updatedTransaction);
-      console.log('Transaction updated in Google Sheets:', updatedTransaction.id);
-    } catch (error) {
-      console.warn('Failed to update in Google Sheets:', error);
-    }
-  }, [transactions]);
+        if (googleSheetsConnected) {
+          setSyncStatus('syncing');
+          await googleSheets.updateTransaction(updatedTransaction);
+          setSyncStatus('success');
+          console.log(`✅ Transaction ${updatedTransaction.id} updated in Google Sheets.`);
+        }
+      } catch (error) {
+        setSyncStatus('error');
+        console.error(`❌ Failed to update or sync transaction ${updatedTransaction.id}:`, error);
+      }
+    })();
+  }, [allTransactions, googleSheetsConnected]);
 
   const deleteTransactionsByIds = useCallback(async (ids: string[]) => {
-    const transactionsToDelete = transactions.filter(tx => ids.includes(tx.id));
+    const transactionsToDelete = allTransactions.filter(tx => ids.includes(tx.id));
     
+    // UI Update First
+    setAllTransactions(prev => prev.filter(tx => !ids.includes(tx.id)));
+    // Vault update
     setVault(prevVault => {
         const updatedVault = { ...prevVault };
         transactionsToDelete.forEach(tx => {
-            if (tx.paymentMethod === 'cash' && tx.breakdown && typeof tx.breakdown === 'object') {
+            if (tx.paymentMethod === 'cash' && tx.breakdown) {
                 for(const denom in tx.breakdown) {
-                    const denomNum = parseInt(denom, 10);
-                    const count = tx.breakdown[denomNum];
-                    if (tx.type === 'credit') {
-                        // Remove from vault (reverse credit)
-                        updatedVault[denomNum] = (updatedVault[denomNum] || 0) - count;
-                    } else if (tx.type === 'debit') {
-                        // Add back to vault (reverse debit)
-                        updatedVault[denomNum] = (updatedVault[denomNum] || 0) + count;
-                    }
+                    const denomNum = parseInt(denom, 10); const count = tx.breakdown[denomNum];
+                    if (tx.type === 'credit') updatedVault[denomNum] -= count;
+                    else if (tx.type === 'debit') updatedVault[denomNum] += count;
                 }
             }
         });
         return updatedVault;
     });
 
-    setAllTransactions(prev => prev.filter(tx => !ids.includes(tx.id)));
+    // Persist and Sync in Background
+    (async () => {
+      try {
+        for (const id of ids) {
+          await localDB.deleteTransaction(id);
+        }
+        console.log(`✅ Transactions ${ids.join(', ')} deleted locally.`);
 
-    // Delete from Google Sheets (async, non-blocking)
-    try {
-      for (const id of ids) {
-        await googleSheets.deleteTransaction(id);
+        if (googleSheetsConnected) {
+          setSyncStatus('syncing');
+          for (const id of ids) {
+            await googleSheets.deleteTransaction(id);
+          }
+          setSyncStatus('success');
+          console.log(`✅ Transactions ${ids.join(', ')} deleted from Google Sheets.`);
+        }
+      } catch (error) {
+        setSyncStatus('error');
+        console.error(`❌ Failed to delete or sync transactions ${ids.join(', ')}:`, error);
       }
-      console.log('Transactions deleted from Google Sheets:', ids);
-    } catch (error) {
-      console.warn('Failed to delete from Google Sheets:', error);
-    }
-  }, [transactions]);
+    })();
+  }, [allTransactions, googleSheetsConnected]);
 
   const addCompany = useCallback(async (companyName: string) => {
     setCompanyNames(prev => [...prev, companyName].sort());
@@ -433,36 +407,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setCompanyNames(prev => prev.filter(c => c !== companyName));
   }, []);
 
-  const manualSync = useCallback(async () => {
+
+  const clearLocalDB = useCallback(async () => {
     try {
-      setSyncStatus('syncing');
-      console.log('Manual sync started...');
-      
-      // Load all existing transactions from Google Sheets
-      const sheetTransactions = await googleSheets.getAllTransactions();
-      console.log('Manual sync - loaded transactions:', sheetTransactions.length);
-      
-      if (sheetTransactions.length > 0) {
-        console.log('Manual sync - updating local state with', sheetTransactions.length, 'transactions');
-        setAllTransactions(sheetTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        
-        // Recalculate vault from synced transactions
-        console.log('Manual sync - recalculating vault...');
-        const recalculatedVault = recalculateVault(sheetTransactions);
-        setVault(recalculatedVault);
-        console.log('Manual sync - vault recalculated:', recalculatedVault);
-        
-        setSyncStatus('success');
-        console.log('Manual sync completed successfully');
-      } else {
-        console.log('Manual sync - no transactions found in Google Sheets');
-        setSyncStatus('error');
-      }
+      await localDB.clearTransactions();
+      setAllTransactions([]);
+      setVault(initializeVault());
+      console.log('✅ Local database cleared successfully.');
     } catch (error) {
-      console.error('Manual sync failed:', error);
-      setSyncStatus('error');
+      console.error('❌ Failed to clear local database:', error);
     }
-  }, [recalculateVault]);
+  }, []);
   
 
   const value = {
@@ -471,7 +426,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     vault,
     companyNames,
     locations: LOCATIONS,
+    personNames,
     addTransaction,
+    addForwardEntry,
     updateTransaction,
     deleteTransactionsByIds,
     addCompany,
@@ -479,6 +436,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     googleSheetsConnected,
     syncStatus,
     manualSync,
+    clearLocalDB,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

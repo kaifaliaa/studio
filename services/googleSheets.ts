@@ -3,7 +3,7 @@ import { Transaction } from '../types';
 
 // Configuration for Google Apps Script Web App
 const GOOGLE_APPS_SCRIPT_CONFIG = {
-  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwf7p8I32uclFZtgcdpGsRd9qshpHiehPTiDdIMG3U5dieymkCQyKWCkRendyIG5l33/exec',
+  webAppUrl: import.meta.env.VITE_GOOGLE_APPS_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxlZD6Ky_-mJOgM-zU7q40qk078Ea_pS_chab6Hbsz2aqB3g0VgvdheTXHfbaOUkaHg/exec',
 };
 
 // Convert transaction to the format expected by Google Apps Script
@@ -19,8 +19,7 @@ const transactionToData = (transaction: Transaction) => {
     recordedBy: transaction.recordedBy,
     amount: transaction.amount,
     notes: transaction.notes,
-    breakdown: JSON.stringify(transaction.breakdown),
-    timestamp: new Date().toISOString()
+    breakdown: JSON.stringify(transaction.breakdown)
   };
 };
 
@@ -28,6 +27,7 @@ const transactionToData = (transaction: Transaction) => {
 export class GoogleSheetsService {
   private static instance: GoogleSheetsService;
   private webAppUrl: string;
+  private isAddingTransaction = false;
 
   private constructor() {
     this.webAppUrl = GOOGLE_APPS_SCRIPT_CONFIG.webAppUrl;
@@ -98,6 +98,11 @@ export class GoogleSheetsService {
 
   // Add transaction to Google Sheets
   async addTransaction(transaction: Transaction): Promise<boolean> {
+    if (this.isAddingTransaction) {
+      console.warn('Already adding a transaction, skipping this one to prevent duplicates.');
+      return false;
+    }
+    this.isAddingTransaction = true;
     try {
       const data = transactionToData(transaction);
       console.log('Adding transaction to Google Sheets:', transaction.id, data);
@@ -133,6 +138,8 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Failed to add transaction to Google Sheets:', error);
       return false;
+    } finally {
+      this.isAddingTransaction = false;
     }
   }
 
@@ -214,13 +221,25 @@ export class GoogleSheetsService {
       // Get current user for filtering
       const user = localStorage.getItem('ali_enterprises_user');
       const userData = user ? JSON.parse(user) : null;
-      const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
-      
+      const currentUserEmail = userData?.email;
+
       const url = new URL(this.webAppUrl);
       url.searchParams.append('action', 'getAll');
-      url.searchParams.append('recordedBy', currentUserName);
       
-      console.log('Fetching transactions for user:', currentUserName);
+      // Pass the email of the current user, or an 'admin' flag if it's the admin
+      if (currentUserEmail) {
+        if (currentUserEmail.toLowerCase() === 'a@gmail.com') {
+           url.searchParams.append('user', 'admin');
+           console.log('Fetching all transactions for admin user');
+        } else {
+           url.searchParams.append('user', currentUserEmail);
+           console.log('Fetching transactions for user:', currentUserEmail);
+        }
+      } else {
+        console.log('No user logged in, fetching public data only');
+      }
+
+
       console.log('Request URL:', url.toString());
       
       const response = await fetch(url.toString(), {
@@ -237,7 +256,7 @@ export class GoogleSheetsService {
         const data = await response.json();
         console.log('Received data from Google Sheets:', data);
         if (data.transactions && Array.isArray(data.transactions)) {
-          console.log('Parsed', data.transactions.length, 'transactions from Google Sheets for user:', currentUserName);
+          console.log('Parsed', data.transactions.length, 'transactions from Google Sheets');
           return data.transactions.map((row: any): Transaction => ({
             id: row.id || '',
             date: row.date || new Date().toISOString(),
@@ -262,6 +281,33 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Failed to fetch transactions from Google Sheets:', error);
       return [];
+    }
+  }
+  
+  async getLastTransactionId(): Promise<string | null> {
+    try {
+      console.log('Fetching last transaction ID from Google Sheets');
+      const url = new URL(this.webAppUrl);
+      url.searchParams.append('action', 'getLastId');
+
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Received last transaction ID from Google Sheets:', data.lastId);
+        return data.lastId;
+      } else {
+        console.error('Failed to fetch last transaction ID:', response.status, response.statusText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Failed to fetch last transaction ID from Google Sheets:', error);
+      return null;
     }
   }
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
 
@@ -18,16 +18,22 @@ import { RupeeIcon } from '../components/icons/RupeeIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
 
+const formatPersonName = (name: string | undefined) => {
+    if (!name) return 'Unknown Customer';
+    return name.trim().toUpperCase();
+  };
+
 const TransactionItem: React.FC<{
   transaction: Transaction;
   isSelected: boolean;
   onSelect: (id: string) => void;
-}> = ({ transaction, isSelected, onSelect }) => {
+  from: string;
+}> = ({ transaction, isSelected, onSelect, from }) => {
   const { id, date, type, person, amount, paymentMethod } = transaction;
 
   const formattedDate = new Date(date).toLocaleString('en-IN', {
     day: '2-digit', month: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: true,
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
   });
 
   return (
@@ -45,12 +51,12 @@ const TransactionItem: React.FC<{
         <MinusCircleIcon className="h-8 w-8 text-red-500 flex-shrink-0" />
       )}
       <div className="flex-grow truncate">
-        <p className="font-semibold text-lg text-gray-800 dark:text-white truncate">{person || 'N/A'}</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{formattedDate}</p>
+        <p className="text-sm text-gray-800 dark:text-white truncate">{formatPersonName(person)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{formattedDate}</p>
       </div>
       <div className="flex-shrink-0 flex items-center gap-2">
         <div className="text-right">
-            <p className={`text-xl font-bold ${
+            <p className={`text-lg ${
               amount < 0 ? 'text-red-600 dark:text-red-400' : 
               type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
@@ -58,7 +64,7 @@ const TransactionItem: React.FC<{
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase">{paymentMethod}</p>
         </div>
-        <Link to={`/edit/${id}`} className="p-2 text-gray-400 hover:text-blue-500 transition-colors" aria-label="Edit transaction">
+        <Link to={`/edit/${id}`} state={{ from }} className="p-2 text-gray-400 hover:text-blue-500 transition-colors" aria-label="Edit transaction">
             <PencilIcon className="h-5 w-5" />
         </Link>
       </div>
@@ -69,8 +75,9 @@ const TransactionItem: React.FC<{
 const CompanyHistoryPage: React.FC = () => {
   const { companyName } = useParams<{ companyName: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { transactions, deleteTransactionsByIds, addTransaction, user } = useAppContext();
+  const { transactions, deleteTransactionsByIds, addForwardEntry, user } = useAppContext();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const locationFilter = searchParams.get('location');
 
@@ -78,13 +85,13 @@ const CompanyHistoryPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [filterYear, setFilterYear] = useState(searchParams.get('year') || 'all');
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') || 'all');
   const [filterDay, setFilterDay] = useState(searchParams.get('day') || 'all');
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState(searchParams.get('type') || 'all');
   const [showAllDates, setShowAllDates] = useState(searchParams.get('showAllDates') === 'true');
 
   const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
@@ -108,11 +115,11 @@ const CompanyHistoryPage: React.FC = () => {
         years.add(d.getFullYear().toString());
         if (showAllDates) {
             if (filterYear === 'all' || d.getFullYear().toString() === filterYear) {
-                months.add((d.getMonth() + 1).toString().padStart(2, '0'));
+                months.add((d.getMonth() + 1).toString());
             }
             if ((filterYear === 'all' || d.getFullYear().toString() === filterYear) && 
-                (filterMonth === 'all' || (d.getMonth() + 1).toString().padStart(2, '0') === filterMonth)) {
-                days.add(d.getDate().toString().padStart(2, '0'));
+                (filterMonth === 'all' || (d.getMonth() + 1).toString() === filterMonth)) {
+                days.add(d.getDate().toString());
             }
         }
     });
@@ -126,6 +133,11 @@ const CompanyHistoryPage: React.FC = () => {
    useEffect(() => {
     setSelectedIds([]);
     const params = new URLSearchParams(searchParams);
+    if (searchTerm.trim()) {
+      params.set('search', searchTerm.trim());
+    } else {
+      params.delete('search');
+    }
     if (showAllDates) {
       params.set('showAllDates', 'true');
       params.set('year', filterYear);
@@ -137,8 +149,13 @@ const CompanyHistoryPage: React.FC = () => {
       params.delete('month');
       params.delete('day');
     }
+    if (filterType !== 'all') {
+      params.set('type', filterType);
+    } else {
+      params.delete('type');
+    }
     setSearchParams(params, { replace: true });
-  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, searchParams, setSearchParams, transactions]);
+  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, setSearchParams]);
 
   const filteredTransactions = useMemo(() => {
     return companyTransactions.filter(tx => {
@@ -148,15 +165,15 @@ const CompanyHistoryPage: React.FC = () => {
           if (txDate.getFullYear() !== currentDate.getFullYear() || txDate.getMonth() !== currentDate.getMonth() || txDate.getDate() !== currentDate.getDate()) return false;
         } else {
           if (filterYear !== 'all' && txDate.getFullYear().toString() !== filterYear) return false;
-          if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString().padStart(2, '0') !== filterMonth) return false;
-          if (filterDay !== 'all' && txDate.getDate().toString().padStart(2, '0') !== filterDay) return false;
+          if (filterMonth !== 'all' && (txDate.getMonth() + 1).toString() !== filterMonth) return false;
+          if (filterDay !== 'all' && txDate.getDate().toString() !== filterDay) return false;
         }
         if (filterType !== 'all' && tx.type !== filterType) return false;
         const searchLower = searchTerm.toLowerCase();
-        if (searchTerm && !(
-            tx.person?.toLowerCase().includes(searchLower) ||
-            tx.amount.toString().includes(searchLower) ||
-            tx.paymentMethod.toLowerCase().includes(searchLower)
+        if (searchTerm.trim() && !(
+          (typeof tx.person === 'string' && tx.person.toLowerCase().includes(searchLower)) ||
+          tx.amount.toString().includes(searchLower) ||
+          tx.paymentMethod.toLowerCase().includes(searchLower)
         )) return false;
         return true;
     });
@@ -221,11 +238,6 @@ const CompanyHistoryPage: React.FC = () => {
       forwardFromDate.setHours(23, 59, 59, 999);
     }
 
-    if (filteredNetBalance <= 0) {
-      alert("There is no positive balance to forward.");
-      return;
-    }
-
     if (!user) {
       alert("You must be logged in to forward an entry.");
       return;
@@ -235,40 +247,47 @@ const CompanyHistoryPage: React.FC = () => {
     const debitDate = new Date(forwardFromDate);
     const creditDate = new Date(debitDate);
     creditDate.setDate(creditDate.getDate() + 1);
-    creditDate.setHours(0, 0, 0, 0);
+    creditDate.setHours(12, 0, 0, 0);
 
     const debitTransaction = {
-      amount: forwardAmount,
+      amount: Math.abs(forwardAmount),
       company: decodedCompanyName,
       date: debitDate.toISOString(),
       location: locationFilter || companyLocation,
       paymentMethod: 'cash',
       person: 'Forwarded to Next Day',
       type: 'debit' as 'debit',
-      recordedBy: user.displayName,
+      recordedBy: user.displayName || user.email || 'Unknown',
       breakdown: {},
     };
 
     const creditTransaction = {
-      amount: forwardAmount,
+      amount: Math.abs(forwardAmount),
       company: decodedCompanyName,
       date: creditDate.toISOString(),
       location: locationFilter || companyLocation,
       paymentMethod: 'cash',
       person: 'Received from Previous Day',
       type: 'credit' as 'credit',
-      recordedBy: user.displayName,
+      recordedBy: user.displayName || user.email || 'Unknown',
       breakdown: {},
     };
 
     try {
-      await addTransaction(debitTransaction as Omit<Transaction, 'id'>);
-      await addTransaction(creditTransaction as Omit<Transaction, 'id'>);
+      if (forwardAmount > 0) {
+        await addForwardEntry(debitTransaction, creditTransaction);
+      } else {
+        await addForwardEntry(
+          { ...debitTransaction, type: 'credit', person: 'Negative Balance Forwarded' },
+          { ...creditTransaction, type: 'debit', person: 'Negative Balance Received' }
+        );
+      }
+      
       alert('Balance forwarded successfully!');
       
       const year = creditDate.getFullYear().toString();
-      const month = (creditDate.getMonth() + 1).toString().padStart(2, '0');
-      const day = creditDate.getDate().toString().padStart(2, '0');
+      const month = (creditDate.getMonth() + 1).toString();
+      const day = creditDate.getDate().toString();
 
       const newSearchParams = new URLSearchParams();
       newSearchParams.set('year', year);
@@ -307,8 +326,6 @@ const CompanyHistoryPage: React.FC = () => {
       }
   };
 
-  const isForwardDisabled = filteredNetBalance <= 0;
-
   if (!decodedCompanyName) return <div className="text-center p-8">Company name not found.</div>;
 
   return (
@@ -327,55 +344,73 @@ const CompanyHistoryPage: React.FC = () => {
                 </Link>
               )}
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white w-full sm:w-auto text-center sm:text-left">
+          <h2 className="text-2xl text-gray-900 dark:text-white w-full sm:w-auto text-center sm:text-left">
             {decodedCompanyName} History
             {locationFilter && (
-              <span className="block text-sm font-normal text-blue-600 dark:text-blue-400 mt-1">
+              <span className="block text-xs font-normal text-blue-600 dark:text-blue-400 mt-1">
                 Filtered for location: {locationFilter}
               </span>
             )}
           </h2>
           <div className="flex justify-center sm:justify-end gap-2 w-full sm:w-auto">
               <button onClick={handleUpi} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <span className="font-bold">₹</span> Add UPI
+                  <span >₹</span> UPI
               </button>
-              <button onClick={handleForwardEntry} disabled={isForwardDisabled} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                  Forward Entry
+              <button onClick={handleForwardEntry} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-yellow-500 text-white hover:bg-yellow-600">
+                  Forward
               </button>
               <button onClick={handleNewDebit} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-red-600 text-white hover:bg-red-700">
-                  Add Debit
+                  Debit
               </button>
               <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <PrinterIcon className="h-4 w-4" /> Print
+                  <PrinterIcon className="h-5 w-5" />
               </button>
               <button onClick={handleDeleteClick} disabled={selectedIds.length === 0} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <TrashIcon className="h-4 w-4" /> Delete ({selectedIds.length})
+                  <TrashIcon className="h-5 w-5" />
               </button>
           </div>
       </header>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Credit (Cash+Other)</p><p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-1 truncate">₹{filteredSummary.totalCredit.toLocaleString('en-IN')}</p></div><div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-full"><TrendingUpIcon className="h-6 w-6 text-green-600" /></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Debit</p><p className="text-3xl font-bold text-red-600 dark:text-red-400 mt-1 truncate">₹{filteredSummary.totalDebit.toLocaleString('en-IN')}</p><p className='text-xs text-gray-400'>{filteredTransactions.filter(t=>t.type==='debit').length} transactions</p></div><div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-full"><TrendingDownIcon className="h-6 w-6 text-red-600" /></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Net Balance</p><p className={`text-3xl font-bold mt-1 truncate ${filteredNetBalance >= 0 ? 'text-blue-600' : 'text-orange-500'}`}>₹{filteredNetBalance.toLocaleString('en-IN')}</p></div><div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full"><StarIcon className="h-6 w-6 text-blue-600" /></div></div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered Cash Credit</p><p className="text-3xl font-bold text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalCashCredit.toLocaleString('en-IN')}</p></div><div className="bg-gray-100 dark:bg-gray-900/20 p-3 rounded-full"><WalletIcon className="h-6 w-6 text-gray-600" /></div></div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div className='truncate'><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Filtered UPI Credit</p><p className="text-3xl font-bold text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalUpiCredit.toLocaleString('en-IN')}</p></div><div className="bg-gray-100 dark:bg-gray-900/20 p-3 rounded-full"><RupeeIcon className="h-6 w-6 text-gray-600" /></div></div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="text-center border-r border-gray-200 dark:border-gray-700 pr-4">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Credit</p>
+              <p class="text-2xl text-green-600 dark:text-green-400 mt-1 truncate">₹{filteredSummary.totalCredit.toLocaleString('en-IN')}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Debit</p>
+              <p class="text-2xl text-red-600 dark:text-red-400 mt-1 truncate">₹{filteredSummary.totalDebit.toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div class="grid grid-cols-2 gap-4">
+            <div class="text-center border-r border-gray-200 dark:border-gray-700 pr-4">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Cash</p>
+              <p class="text-2xl text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalCashCredit.toLocaleString('en-IN')}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">UPI</p>
+              <p class="text-2xl text-gray-700 dark:text-gray-200 mt-1 truncate">₹{filteredSummary.totalUpiCredit.toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center"><div class='truncate'><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Filtered Net Balance</p><p className={`text-2xl mt-1 truncate ${filteredNetBalance >= 0 ? 'text-blue-600' : 'text-orange-500'}`}>₹{filteredNetBalance.toLocaleString('en-IN')}</p></div><div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full"><StarIcon className="h-6 w-6 text-blue-600" /></div></div>
       </div>
 
       {/* Filter Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-6 sticky top-[65px] z-5 no-print">
-        <input type="text" placeholder="Search this company's transactions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
+        <input type="text" placeholder="Search by person, amount, or payment method..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
         
         <div className="mb-4 flex items-center gap-4">
           <button
             onClick={() => setShowAllDates(!showAllDates)}
             className={`px-4 py-2 rounded-md font-medium transition-colors ${
               showAllDates 
-                ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                : 'bg-blue-600 text-white hover:bg-blue-700' 
             }`}
           >
             {showAllDates ? 'Show Today Only' : 'Show All Dates'}
@@ -390,7 +425,7 @@ const CompanyHistoryPage: React.FC = () => {
         {showAllDates && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterYear} onChange={e => {setFilterYear(e.target.value); setFilterMonth('all'); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Years</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select></div>
-              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{m}</option>)}</select></div>
+              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{new Date(2000, parseInt(m) - 1).toLocaleString('default', { month: 'long' })}</option>)}</select></div>
               <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterDay} onChange={e => setFilterDay(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Days</option>{days.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
               <div className='relative'><FilterIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
           </div>
@@ -410,7 +445,7 @@ const CompanyHistoryPage: React.FC = () => {
 
       {filteredTransactions.length > 0 ? (
         <div className="space-y-4">
-          {filteredTransactions.map(tx => <TransactionItem key={tx.id} transaction={tx} isSelected={selectedIds.includes(tx.id)} onSelect={handleSelect} />)}
+          {filteredTransactions.map(tx => <TransactionItem key={tx.id} transaction={tx} isSelected={selectedIds.includes(tx.id)} onSelect={handleSelect} from={location.pathname + location.search} />)}
         </div>
       ) : (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-xl mt-4">
@@ -421,7 +456,7 @@ const CompanyHistoryPage: React.FC = () => {
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Confirm Deletion</h3>
+                <h3 className="text-lg text-gray-900 dark:text-white">Confirm Deletion</h3>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                     Are you sure you want to delete the selected <strong>{selectedIds.length}</strong> transaction(s) for <strong>{decodedCompanyName}</strong>? This will also update the cash vault for any cash transactions and cannot be undone.
                 </p>

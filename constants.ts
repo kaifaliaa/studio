@@ -1,10 +1,10 @@
 export const DENOMINATIONS: number[] = [500, 200, 100, 50, 20, 10, 1];
 
 export const COMPANY_NAMES: string[] = [
-  "ASHIRVAD", "BELSTAR", "CHOLA", "CMS", "DELIVERY", "DIGAMBER",
-  "FINOVA", "FLIPKART", "FUSION", "KOTAK", "LNT", "MEESHO",
+  "ASHIRVAD", "CHARGE","BXU2", "CHOLA", "CMS", "DELIVERY", "DIGAMBER",
+  "FINOVA", "FLIPKART", "FUSION", "KOTAK", "LNT", "M-CASH", "MEESHO",
   "NA", "ODH", "SATIN", "SATYA", "SWABHIMAN", "TVS",
-  "UJJIVAN", "UNITY SMALL"
+  "UJJIVAN", "UNITY SMALL", "XPREES BEES"
 ];
 
 export const LOCATIONS: string[] = [

@@ -38,14 +38,15 @@ body {
     display: none !important;
   }
   main {
-    padding: 0 !important;
+    padding: 40px !important;
     margin: 0 !important;
   }
   .print-container {
     box-shadow: none !important;
     border: none !important;
-    padding: 8px !important;
+    padding: 40px !important;
     font-size: 10px !important;
+    margin: 0 !important;
   }
   /* Hide bottom navigation in print */
   .bottom-nav {
@@ -59,9 +60,10 @@ body {
   }
   
   th, td {
-    padding: 2px !important;
+    padding: 1px !important;
     font-size: 8px !important;
-    white-space: nowrap !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
   }
   
   /* Ensure table fits on mobile screens */
@@ -73,12 +75,6 @@ body {
   h1 {
     font-size: 14px !important;
     margin-bottom: 4px !important;
-  }
-  
-  /* Adjust spacing for mobile print */
-  .print-container {
-    margin: 0 !important;
-    padding: 4px !important;
   }
   
   /* Make buttons smaller in print view */

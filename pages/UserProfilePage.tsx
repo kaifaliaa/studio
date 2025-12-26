@@ -13,6 +13,7 @@ const UserProfilePage: React.FC = () => {
   const user = localStorage.getItem('ali_enterprises_user');
   const userData = user ? JSON.parse(user) : null;
   const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
+  const isAdmin = userData?.email === 'a@gmail.com';
   
   const [userStats, setUserStats] = useState({
     totalTransactions: 0,
@@ -21,7 +22,10 @@ const UserProfilePage: React.FC = () => {
     netBalance: 0,
     firstTransactionDate: '',
     companiesWorkedWith: 0,
-    locationsWorkedIn: 0
+    locationsWorkedIn: 0,
+    founding: 400000,
+    netFound: 0,
+    earning: 0,
   });
 
   useEffect(() => {
@@ -37,14 +41,22 @@ const UserProfilePage: React.FC = () => {
       
       const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
+      const netBalance = totalCredits - totalDebits;
+      const founding = 400000;
+      const netFound = founding + netBalance;
+      const earning = netBalance;
+
       setUserStats({
         totalTransactions: transactions.length,
         totalCredits,
         totalDebits,
-        netBalance: totalCredits - totalDebits,
+        netBalance,
         firstTransactionDate: sortedTransactions[0]?.date || '',
         companiesWorkedWith: companies.size,
-        locationsWorkedIn: locations.size
+        locationsWorkedIn: locations.size,
+        founding,
+        netFound,
+        earning,
       });
     }
   }, [transactions]);
@@ -137,6 +149,39 @@ const UserProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Founding</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(userStats.founding)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Net Found</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatCurrency(userStats.netFound)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Earning</p>
+                <p className={`text-3xl font-bold ${userStats.earning >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {formatCurrency(userStats.earning)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Additional Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

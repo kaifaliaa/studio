@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { UsersIcon } from '../components/icons/UsersIcon';
 import { ChevronRightIcon } from '../components/icons/ChevronRightIcon';
-import { PlusIcon } from '../components/icons/PlusIcon';
-import { TrashIcon } from '../components/icons/TrashIcon';
 
 interface FilteredSummary {
   displayName: string;
@@ -25,30 +23,15 @@ interface SummaryAccumulatorValue {
 type SummaryAccumulator = { [key: string]: SummaryAccumulatorValue };
 
 const SummaryPage: React.FC = () => {
-  const { transactions, locations, companyNames, addCompany, deleteCompany } = useAppContext();
-  const [selectedLocation, setSelectedLocation] = useState('all');
-  const [newCompanyName, setNewCompanyName] = useState('');
-  const [companyToDelete, setCompanyToDelete] = useState('');
+  const { transactions, locations } = useAppContext();
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const sortedLocations = useMemo(() => [...locations].sort(), [locations]);
-
-  const handleAddCompany = async () => {
-    if (newCompanyName.trim() === '') return;
-    await addCompany(newCompanyName.trim().toUpperCase());
-    setNewCompanyName('');
-  };
-
-  const handleDeleteCompany = async () => {
-    if (companyToDelete.trim() === '') return;
-    await deleteCompany(companyToDelete.trim());
-    setCompanyToDelete('');
-  };
+  const activeLocation = selectedLocation ?? (sortedLocations.length > 0 ? sortedLocations[0] : null);
 
   const filteredSummaries = useMemo(() => {
-    const relevantTransactions =
-      selectedLocation === 'all'
-        ? transactions
-        : transactions.filter(tx => tx.location === selectedLocation);
+    const relevantTransactions = transactions.filter(tx => tx.location === activeLocation);
 
     const summariesByGroup = relevantTransactions.reduce<SummaryAccumulator>((acc, tx) => {
       const companyName = tx.company || 'NA';
@@ -78,16 +61,16 @@ const SummaryPage: React.FC = () => {
         ...summary,
         netBalance: summary.totalCredit - summary.totalDebit,
       }))
+      .filter(summary => summary.displayName.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }, [transactions, selectedLocation]);
+  }, [transactions, activeLocation, searchTerm]);
 
   const getCompanyUrl = (companyName: string) => {
     const encodedName = encodeURIComponent(companyName);
-    if (selectedLocation === 'all') {
-      return `/company/${encodedName}`;
-    } else {
-      return `/company/${encodedName}?location=${encodeURIComponent(selectedLocation)}`;
+    if (activeLocation) {
+        return `/company/${encodedName}?location=${encodeURIComponent(activeLocation)}`;
     }
+    return `/company/${encodedName}`;
   };
 
   return (
@@ -100,59 +83,11 @@ const SummaryPage: React.FC = () => {
             <p className="text-gray-500 dark:text-gray-400 mt-1">Balances based on your recorded transactions.</p>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newCompanyName}
-              onChange={(e) => setNewCompanyName(e.target.value)}
-              placeholder="New Company Name"
-              className="w-full sm:w-auto px-2 py-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-            />
-            <button
-              onClick={handleAddCompany}
-              className="px-3 py-1 bg-green-600 text-white rounded-md flex items-center gap-1 shrink-0"
-            >
-              <PlusIcon className="h-5 w-5" />
-              <span className="hidden sm:inline">Add</span>
-            </button>
-          </div>
-          <div className="flex gap-2">
-            <select
-              value={companyToDelete}
-              onChange={(e) => setCompanyToDelete(e.target.value)}
-              className="w-full sm:w-auto px-2 py-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-            >
-              <option value="">Select to Delete</option>
-              {companyNames.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleDeleteCompany}
-              disabled={!companyToDelete}
-              className="px-3 py-1 bg-red-600 text-white rounded-md flex items-center gap-1 shrink-0 disabled:opacity-50"
-            >
-              <TrashIcon className="h-5 w-5" />
-              <span className="hidden sm:inline">Delete</span>
-            </button>
-          </div>
-        </div>
       </div>
         
       <div className="flex flex-wrap gap-2 mb-6">
-        <button
-          onClick={() => setSelectedLocation('all')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              selectedLocation === 'all'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-          }`}
-        >
-          All Locations
-        </button>
         {sortedLocations.map(location => {
-          const isActive = selectedLocation === location;
+          const isActive = activeLocation === location;
           return (
             <button
               key={location}
@@ -167,6 +102,21 @@ const SummaryPage: React.FC = () => {
             </button>
           );
         })}
+      </div>
+
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search Company Name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+        />
+      </div>
+      <div className="mb-6">
+          <Link to="/group/finance" className="text-blue-500 hover:underline">
+              View Finance Group History
+          </Link>
       </div>
 
       {/* Table for larger screens */}
