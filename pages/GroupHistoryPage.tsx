@@ -18,6 +18,7 @@ import { RupeeIcon } from '../components/icons/RupeeIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
 import { UserIcon } from '../components/icons/UserIcon';
+import { ShareIcon } from '../components/icons/ShareIcon';
 
 const TransactionItem: React.FC<{
   transaction: Transaction;
@@ -71,29 +72,16 @@ const TransactionItem: React.FC<{
 const GroupHistoryPage: React.FC = () => {
   const { groupName } = useParams<{ groupName: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { transactions, deleteTransactionsByIds, addForwardEntry, user } = useAppContext();
+  const { transactions, user } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isAdmin = user?.email === 'a@gmail.com';
   const locationFilter = searchParams.get('location');
 
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const [filterYear, setFilterYear] = useState(searchParams.get('year') || 'all');
-  const [filterMonth, setFilterMonth] = useState(searchParams.get('month') || 'all');
-  const [filterDay, setFilterDay] = useState(searchParams.get('day') || 'all');
-  const [filterType, setFilterType] = useState(searchParams.get('type') || 'all');
-  const [filterRecorder, setFilterRecorder] = useState(searchParams.get('recorder') || 'all');
-  const [showAllDates, setShowAllDates] = useState(searchParams.get('showAllDates') === 'true');
-
   const decodedGroupName = groupName ? decodeURIComponent(groupName) : '';
-  const companyGroup = ['KOTAK', 'CHOLA', 'UNITY SMALL'];
+  const companyGroup = ['CHOLA', 'UNITY SMALL'];
 
   const groupTransactions = useMemo(() => {
     let filtered = transactions.filter(tx => companyGroup.includes(tx.company || 'NA'));
@@ -137,6 +125,23 @@ const GroupHistoryPage: React.FC = () => {
     }
   };
 
+  const handleShare = (person: string, netBalance: number, transactions: Transaction[]) => {
+    let message = `Hello ${person},\n\nHere is your transaction summary:\n\n`;
+
+    transactions.slice(0, 5).forEach(tx => {
+        const formattedDate = new Date(tx.date).toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+        });
+        const sign = tx.type === 'credit' ? '+' : '-';
+        message += `${formattedDate}: ${sign}₹${tx.amount.toLocaleString('en-IN')} (${tx.paymentMethod})\n`;
+    });
+
+    message += `\nNet Balance: ₹${netBalance.toLocaleString('en-IN')}`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   if (!decodedGroupName) return <div className="text-center p-8">Group name not found.</div>;
 
   return (
@@ -157,7 +162,12 @@ const GroupHistoryPage: React.FC = () => {
             <div className="p-4 cursor-pointer" onClick={() => handlePersonClick(person)}>
                 <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-xl text-gray-900 dark:text-white">{person}</h3>
-                    <div className={`${netBalance >= 0 ? 'text-blue-600' : 'text-orange-500'} font-bold text-xl`}>₹{netBalance.toLocaleString('en-IN')}</div>
+                    <div className="flex items-center gap-4">
+                      <div className={`${netBalance >= 0 ? 'text-blue-600' : 'text-orange-500'} font-bold text-xl`}>₹{netBalance.toLocaleString('en-IN')}</div>
+                      <button onClick={(e) => { e.stopPropagation(); handleShare(person, netBalance, transactions); }} className="p-2 text-gray-400 hover:text-green-500 transition-colors" aria-label="Share on WhatsApp">
+                        <ShareIcon className="h-6 w-6" />
+                      </button>
+                    </div>
                 </div>
                 <div className="flex justify-between text-sm mt-2">
                     <div className="text-green-600">Credit: ₹{totalCredit.toLocaleString('en-IN')}</div>
@@ -166,7 +176,7 @@ const GroupHistoryPage: React.FC = () => {
             </div>
             {expandedPerson === person && (
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
-                    {transactions.map(tx => (
+                    {transactions.slice(0, 5).map(tx => (
                         <TransactionItem 
                             key={tx.id} 
                             transaction={tx} 
