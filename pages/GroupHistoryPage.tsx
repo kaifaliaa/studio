@@ -81,7 +81,7 @@ const GroupHistoryPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const decodedGroupName = groupName ? decodeURIComponent(groupName) : '';
-  const companyGroup = ['CHOLA', 'UNITY SMALL'];
+  const companyGroup = ['CHOLA', ];
 
   const groupTransactions = useMemo(() => {
     let filtered = transactions.filter(tx => companyGroup.includes(tx.company || 'NA'));
@@ -126,17 +126,23 @@ const GroupHistoryPage: React.FC = () => {
   };
 
   const handleShare = (person: string, netBalance: number, transactions: Transaction[]) => {
-    let message = `Hello ${person},\n\nHere is your transaction summary:\n\n`;
+    let message = `Hello ${person},
+
+Here is your transaction summary:
+
+`;
 
     transactions.slice(0, 5).forEach(tx => {
         const formattedDate = new Date(tx.date).toLocaleString('en-IN', {
             day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
         });
         const sign = tx.type === 'credit' ? '+' : '-';
-        message += `${formattedDate}: ${sign}₹${tx.amount.toLocaleString('en-IN')} (${tx.paymentMethod})\n`;
+        message += `${formattedDate}: ${sign}₹${tx.amount.toLocaleString('en-IN')} (${tx.paymentMethod})
+`;
     });
 
-    message += `\nNet Balance: ₹${netBalance.toLocaleString('en-IN')}`;
+    message += `
+Net Balance: ₹${netBalance.toLocaleString('en-IN')}`;
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -176,7 +182,7 @@ const GroupHistoryPage: React.FC = () => {
             </div>
             {expandedPerson === person && (
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4 space-y-4">
-                    {transactions.slice(0, 5).map(tx => (
+                    {transactions.map(tx => (
                         <TransactionItem 
                             key={tx.id} 
                             transaction={tx} 
