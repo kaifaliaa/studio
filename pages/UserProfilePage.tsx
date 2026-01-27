@@ -115,7 +115,7 @@ const UserProfilePage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Credits</p>
-              <p className="text-3xl font-bold text-green-600 dark:text-green-400">{formatCurrency(userStats.totalCredits)}</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(userStats.totalCredits)}</p>
             </div>
             <div className="bg-green-100 dark:bg-green-900/50 p-3 rounded-full">
               <TrendingUpIcon className="h-6 w-6 text-green-600" />
@@ -127,7 +127,7 @@ const UserProfilePage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Debits</p>
-              <p className="text-3xl font-bold text-red-600 dark:text-red-400">{formatCurrency(userStats.totalDebits)}</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(userStats.totalDebits)}</p>
             </div>
             <div className="bg-red-100 dark:bg-red-900/50 p-3 rounded-full">
               <TrendingDownIcon className="h-6 w-6 text-red-600" />
@@ -139,7 +139,7 @@ const UserProfilePage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Net Balance</p>
-              <p className={`text-3xl font-bold ${userStats.netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-500'}`}>
+              <p className={`text-2xl font-bold ${userStats.netBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-500'}`}>
                 {formatCurrency(userStats.netBalance)}
               </p>
             </div>
