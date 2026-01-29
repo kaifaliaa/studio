@@ -23,7 +23,7 @@ const UserProfilePage: React.FC = () => {
     firstTransactionDate: '',
     companiesWorkedWith: 0,
     locationsWorkedIn: 0,
-    founding: 400000,
+    founding: 650000,
     netFound: 0,
     earning: 0,
   });
@@ -42,7 +42,7 @@ const UserProfilePage: React.FC = () => {
       const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       const netBalance = totalCredits - totalDebits;
-      const founding = 400000;
+      const founding = 650000;
       const netFound = founding + netBalance;
       const earning = netBalance;
 
