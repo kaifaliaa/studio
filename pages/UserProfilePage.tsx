@@ -31,9 +31,9 @@ const UserProfilePage: React.FC = () => {
   });
 
   useEffect(() => {
-    const validTransactions = transactions.filter(tx => tx.company !== 'NA');
-
-    if (validTransactions.length > 0) {
+    if (transactions.length > 0) {
+      const validTransactions = transactions.filter(tx => tx.company !== 'NA');
+      
       const credits = validTransactions.filter(tx => tx.type === 'credit');
       const debits = validTransactions.filter(tx => tx.type === 'debit');
       
@@ -51,7 +51,7 @@ const UserProfilePage: React.FC = () => {
       const earning = netBalance;
 
       setUserStats({
-        totalTransactions: validTransactions.length,
+        totalTransactions: transactions.length, // Calculate total transactions from the original array
         totalCredits,
         totalDebits,
         netBalance,
