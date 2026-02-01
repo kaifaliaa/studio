@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { UserIcon } from '../components/icons/UserIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 import { TrendingUpIcon } from '../components/icons/TrendingUpIcon';
 import { TrendingDownIcon } from '../components/icons/TrendingDownIcon';
 import { StarIcon } from '../components/icons/StarIcon';
+import { WalletIcon } from '../components/icons/WalletIcon';
 
 const UserProfilePage: React.FC = () => {
   const { transactions } = useAppContext();
+  const navigate = useNavigate();
   
-  // Get current user
   const user = localStorage.getItem('ali_enterprises_user');
   const userData = user ? JSON.parse(user) : null;
   const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
@@ -29,17 +31,19 @@ const UserProfilePage: React.FC = () => {
   });
 
   useEffect(() => {
-    if (transactions.length > 0) {
-      const credits = transactions.filter(tx => tx.type === 'credit');
-      const debits = transactions.filter(tx => tx.type === 'debit');
+    const validTransactions = transactions.filter(tx => tx.company !== 'NA');
+
+    if (validTransactions.length > 0) {
+      const credits = validTransactions.filter(tx => tx.type === 'credit');
+      const debits = validTransactions.filter(tx => tx.type === 'debit');
       
       const totalCredits = credits.reduce((sum, tx) => sum + tx.amount, 0);
       const totalDebits = debits.reduce((sum, tx) => sum + tx.amount, 0);
       
-      const companies = new Set(transactions.map(tx => tx.company).filter(c => c && c !== 'NA'));
-      const locations = new Set(transactions.map(tx => tx.location).filter(l => l && l !== 'NA'));
+      const companies = new Set(validTransactions.map(tx => tx.company).filter(c => c));
+      const locations = new Set(validTransactions.map(tx => tx.location).filter(l => l));
       
-      const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const sortedTransactions = [...validTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       const netBalance = totalCredits - totalDebits;
       const founding = 650000;
@@ -47,7 +51,7 @@ const UserProfilePage: React.FC = () => {
       const earning = netBalance;
 
       setUserStats({
-        totalTransactions: transactions.length,
+        totalTransactions: validTransactions.length,
         totalCredits,
         totalDebits,
         netBalance,
@@ -95,6 +99,17 @@ const UserProfilePage: React.FC = () => {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Personal Udhar Button */}
+      <div className="mb-6">
+        <button 
+          onClick={() => navigate('/udhar')}
+          className="w-full flex items-center justify-center gap-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow p-4 text-blue-600 dark:text-blue-400 font-semibold"
+        >
+          <WalletIcon className="h-6 w-6" />
+          <span>View Personal Udhar</span>
+        </button>
       </div>
 
       {/* Statistics Grid */}

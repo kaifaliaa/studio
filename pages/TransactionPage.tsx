@@ -1,5 +1,5 @@
-// Implementing the TransactionPage component
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { NoteCounts, TransactionType } from '../types';
 import { DENOMINATIONS } from '../constants';
@@ -13,13 +13,13 @@ import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 
 const TransactionPage: React.FC = () => {
   const { addTransaction, companyNames, locations } = useAppContext();
+  const { state: routeState } = useLocation();
+  const navigate = useNavigate();
 
-  // Get current user
   const user = localStorage.getItem('ali_enterprises_user');
   const userData = user ? JSON.parse(user) : null;
   const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
 
-  // State for form fields
   const [person, setPerson] = useState('');
   const [company, setCompany] = useState('');
   const [location, setLocation] = useState('');
@@ -27,35 +27,57 @@ const TransactionPage: React.FC = () => {
   const [breakdown, setBreakdown] = useState<NoteCounts>({});
   const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
 
-  // Update recordedBy when user changes
-  useEffect(() => {
-    setRecordedBy(currentUserName);
-  }, [currentUserName]);
+  const [prefilledType, setPrefilledType] = useState<TransactionType | null>(null);
+  const [isPersonalUdhar, setIsPersonalUdhar] = useState(false);
 
-  // State for submission handling
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (routeState?.person && routeState?.company) {
+      setPerson(routeState.person);
+      setCompany(routeState.company);
+      setPrefilledType(routeState.type || null);
+      setIsPersonalUdhar(true);
+    } else {
+      setIsPersonalUdhar(false);
+      setPrefilledType(null);
+    }
+  }, [routeState]);
+
+  useEffect(() => {
+    setRecordedBy(currentUserName);
+  }, [currentUserName]);
 
   const totalAmount = useMemo(() => {
     return DENOMINATIONS.reduce((sum, denom) => sum + (breakdown[denom] || 0) * denom, 0);
   }, [breakdown]);
 
-  const resetForm = () => {
-    setPerson('');
-    setCompany('');
+  const resetForm = (clearPrefilled = false) => {
+    if (!isPersonalUdhar || clearPrefilled) {
+        setPerson('');
+        setCompany('');
+        setIsPersonalUdhar(false);
+        setPrefilledType(null);
+        // Clear navigation state
+        navigate('.', { replace: true });
+    }
     setLocation('');
     setBreakdown({});
     setError(null);
     setManualDate(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
-  }
+  };
 
   const handleTransaction = async (transactionType: TransactionType) => {
     if (!location) {
       setError("Location is a required field.");
       return;
     }
-
+    if (totalAmount <= 0) {
+        setError("Transaction amount must be greater than zero.");
+        return;
+    }
 
     setError(null);
     setIsSubmitting(true);
@@ -70,12 +92,12 @@ const TransactionPage: React.FC = () => {
         location: location,
         recordedBy: recordedBy,
         amount: totalAmount,
-        notes: '', // No notes field in the new design
+        notes: '',
         breakdown,
         manualDate: manualDate,
       });
       setSuccessMessage(`Transaction of ₹${totalAmount.toLocaleString('en-IN')} recorded successfully!`);
-      resetForm();
+      resetForm(true);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -87,21 +109,18 @@ const TransactionPage: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sm:p-8">
       {successMessage && (
-        <div className="bg-green-100 dark:bg-green-900/50 border border-green-400 text-green-700 dark:text-green-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+        <div className="bg-green-100 dark:bg-green-900/50 border border-green-400 text-green-700 dark:text-green-200 px-4 py-3 rounded-lg relative mb-6">
           {successMessage}
         </div>
       )}
       {error && (
-        <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg relative mb-6" role="alert">
+        <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 text-red-700 dark:text-red-200 px-4 py-3 rounded-lg relative mb-6">
           <strong className="font-bold">Error: </strong>
           <span className="block sm:inline">{error}</span>
         </div>
       )}
 
       <div className="space-y-6">
-
-        <hr className="border-gray-200 dark:border-gray-700" />
-
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Cash Denominations</h3>
           <CurrencyCounter value={breakdown} onChange={setBreakdown} />
@@ -109,71 +128,57 @@ const TransactionPage: React.FC = () => {
 
         <div className="bg-gray-100 dark:bg-gray-700/50 p-4 rounded-lg text-center">
           <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-            Total Transaction Amount: ₹{totalAmount.toLocaleString('en-IN')}
+            Total Amount: ₹{totalAmount.toLocaleString('en-IN')}
           </h3>
         </div>
 
-        <hr className="border-gray-200 dark:border-gray-700" />
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <UserIcon className="h-5 w-5 text-gray-400" />
-            </div>
-            <input type="text" name="customerName" id="customerName" value={person} onChange={e => setPerson(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" placeholder="Enter customer's name" />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><UserIcon className="h-5 w-5 text-gray-400" /></div>
+            <input type="text" value={person} onChange={e => setPerson(e.target.value)} disabled={isPersonalUdhar} className="block w-full pl-10 pr-3 py-2 border rounded-md sm:text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-800" placeholder="Customer's name" />
           </div>
 
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
-            </div>
-            <select id="companyName" name="companyName" value={company} onChange={e => setCompany(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none">
-              <option value="">Select Company Name</option>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><BuildingOfficeIcon className="h-5 w-5 text-gray-400" /></div>
+            <select value={company} onChange={e => setCompany(e.target.value)} disabled={isPersonalUdhar} className="block w-full pl-10 pr-3 py-2 border rounded-md sm:text-sm bg-white dark:bg-gray-700 appearance-none border-gray-300 dark:border-gray-600 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-800">
+              <option value="">Select Company</option>
+              {isPersonalUdhar && <option value="NA">NA</option>}
               {companyNames.map(name => <option key={name} value={name}>{name}</option>)}
             </select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MapPinIcon className="h-5 w-5 text-gray-400" />
+            <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><MapPinIcon className="h-5 w-5 text-gray-400" /></div>
+                <select value={location} onChange={e => setLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border rounded-md sm:text-sm bg-white dark:bg-gray-700 appearance-none border-gray-300 dark:border-gray-600" required>
+                <option value="">Select Location</option>
+                {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                </select>
             </div>
-            <select id="location" name="location" value={location} onChange={e => setLocation(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700 appearance-none" required>
-              <option value="">Select Location</option>
-              {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-            </select>
-          </div>
 
-          <div className="mt-1 relative rounded-md shadow-sm">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
+            <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><CalendarDaysIcon className="h-5 w-5 text-gray-400" /></div>
+                <input type="datetime-local" value={manualDate} onChange={e => setManualDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border rounded-md sm:text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
             </div>
-            <input type="datetime-local" name="date" id="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-gray-700" />
-          </div>
         </div>
 
         <div>
-          <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => handleTransaction('debit')}
-                disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <TrendingDownIcon className="h-5 w-5 text-red-500" />
-                <span>Debit</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleTransaction('credit')}
-                disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <TrendingUpIcon className="h-5 w-5 text-green-500" />
-                <span>Credit</span>
-              </button>
-          </div>
+            {prefilledType ? (
+                <button
+                    type="button"
+                    onClick={() => handleTransaction(prefilledType)}
+                    disabled={isSubmitting || totalAmount <= 0}
+                    className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${prefilledType === 'credit' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-red-500 text-white hover:bg-red-600'}`}>
+                    <span className="capitalize">{prefilledType}</span>
+                    <span>₹{totalAmount.toLocaleString('en-IN')}</span>
+                </button>
+            ) : (
+                <div className="grid grid-cols-2 gap-4">
+                    <button type="button" onClick={() => handleTransaction('debit')} disabled={isSubmitting || totalAmount <= 0} className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"><TrendingDownIcon className="h-5 w-5 text-red-500" /><span>Debit</span></button>
+                    <button type="button" onClick={() => handleTransaction('credit')} disabled={isSubmitting || totalAmount <= 0} className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"><TrendingUpIcon className="h-5 w-5 text-green-500" /><span>Credit</span></button>
+                </div>
+            )}
         </div>
       </div>
     </div>

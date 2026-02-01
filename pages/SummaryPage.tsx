@@ -35,6 +35,11 @@ const SummaryPage: React.FC = () => {
 
     const summariesByGroup = relevantTransactions.reduce<SummaryAccumulator>((acc, tx) => {
       const companyName = tx.company || 'NA';
+      
+      if (companyName === 'NA') {
+        return acc;
+      }
+
       const groupKey = `${companyName} ${tx.location}`;
 
       if (!acc[groupKey]) {

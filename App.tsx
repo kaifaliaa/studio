@@ -17,6 +17,8 @@ import DebitEntryPage from './pages/DebitEntryPage';
 import UpiCreditPage from './pages/UpiCreditPage';
 import ReportPage from './pages/ReportPage';
 import EditTransactionPage from './pages/EditTransactionPage';
+import UdharPage from './pages/UdharPage';
+import PersonUdharPage from './pages/PersonUdharPage'; // Import PersonUdharPage
 
 const App: React.FC = () => {
   return (
@@ -45,6 +47,8 @@ const App: React.FC = () => {
                         <Route path="/vault" element={<VaultPage />} />
                         <Route path="/summary" element={<SummaryPage />} />
                         <Route path="/profile" element={<UserProfilePage />} />
+                        <Route path="/udhar" element={<UdharPage />} />
+                        <Route path="/udhar/:personName" element={<PersonUdharPage />} /> {/* Add route for PersonUdharPage */}
                         <Route path="/company/:companyName" element={<CompanyHistoryPage />} />
                         <Route path="/group/:groupName" element={<GroupHistoryPage />} />
                         <Route path="/debit-entry" element={<DebitEntryPage />} />
