@@ -74,8 +74,8 @@ const TransactionPage: React.FC = () => {
       setError("Location is a required field.");
       return;
     }
-    if (totalAmount <= 0) {
-        setError("Transaction amount must be greater than zero.");
+    if (totalAmount < 0) {
+        setError("Transaction amount cannot be negative.");
         return;
     }
 
@@ -168,15 +168,15 @@ const TransactionPage: React.FC = () => {
                 <button
                     type="button"
                     onClick={() => handleTransaction(prefilledType)}
-                    disabled={isSubmitting || totalAmount <= 0}
+                    disabled={isSubmitting || totalAmount < 0}
                     className={`w-full flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${prefilledType === 'credit' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-red-500 text-white hover:bg-red-600'}`}>
                     <span className="capitalize">{prefilledType}</span>
                     <span>₹{totalAmount.toLocaleString('en-IN')}</span>
                 </button>
             ) : (
                 <div className="grid grid-cols-2 gap-4">
-                    <button type="button" onClick={() => handleTransaction('debit')} disabled={isSubmitting || totalAmount <= 0} className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"><TrendingDownIcon className="h-5 w-5 text-red-500" /><span>Debit</span></button>
-                    <button type="button" onClick={() => handleTransaction('credit')} disabled={isSubmitting || totalAmount <= 0} className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"><TrendingUpIcon className="h-5 w-5 text-green-500" /><span>Credit</span></button>
+                    <button type="button" onClick={() => handleTransaction('debit')} disabled={isSubmitting || totalAmount < 0} className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"><TrendingDownIcon className="h-5 w-5 text-red-500" /><span>Debit</span></button>
+                    <button type="button" onClick={() => handleTransaction('credit')} disabled={isSubmitting || totalAmount < 0} className="flex items-center justify-center gap-2 p-3 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"><TrendingUpIcon className="h-5 w-5 text-green-500" /><span>Credit</span></button>
                 </div>
             )}
         </div>

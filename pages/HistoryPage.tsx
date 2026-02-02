@@ -210,6 +210,9 @@ const HistoryPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto pb-32 md:pb-24">
+      {syncStatus === 'success' && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">Sync successful!</div>}
+      {syncStatus === 'error' && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">Sync failed.</div>}
+      
       <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
         <h2 className="text-3xl text-gray-900 dark:text-white">History</h2>
         <div className="flex items-center gap-4 flex-wrap">
@@ -271,9 +274,6 @@ const HistoryPage: React.FC = () => {
             </div>
         </div>
       )}
-
-      {syncStatus === 'success' && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">Sync successful!</div>}
-      {syncStatus === 'error' && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">Sync failed.</div>}
 
       <div className="mb-4 flex items-center">
         <input type="checkbox" id="selectAll" onChange={handleSelectAll} checked={filteredTransactions.length > 0 && selectedIds.length === filteredTransactions.length} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />

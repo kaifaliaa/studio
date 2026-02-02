@@ -1,36 +1,29 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
+import { contacts } from '../utils/contacts';
 
 // Icons
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
-import { TrendingUpIcon } from '../components/icons/TrendingUpIcon';
-import { TrendingDownIcon } from '../components/icons/TrendingDownIcon';
-import { StarIcon } from '../components/icons/StarIcon';
 import { CheckCircleIcon } from '../components/icons/CheckCircleIcon';
 import { MinusCircleIcon } from '../components/icons/MinusCircleIcon';
-import { TrashIcon } from '../components/icons/TrashIcon';
 import { PencilIcon } from '../components/icons/PencilIcon';
-import { PrinterIcon } from '../components/icons/PrinterIcon';
-import { WalletIcon } from '../components/icons/WalletIcon';
-import { RupeeIcon } from '../components/icons/RupeeIcon';
-import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
-import { FilterIcon } from '../components/icons/FilterIcon';
-import { UserIcon } from '../components/icons/UserIcon';
 import { ShareIcon } from '../components/icons/ShareIcon';
 
+type TransactionWithBalance = Transaction & { closingBalance: number };
+
 const TransactionItem: React.FC<{
-  transaction: Transaction;
+  transaction: TransactionWithBalance;
   isSelected: boolean;
   onSelect: (id: string) => void;
   from: string;
 }> = ({ transaction, isSelected, onSelect, from }) => {
-  const { id, date, type, person, amount, paymentMethod } = transaction;
+  const { id, date, type, person, amount, paymentMethod, closingBalance } = transaction;
 
   const formattedDate = new Date(date).toLocaleString('en-IN', {
     day: '2-digit', month: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+    hour: '2-digit', minute: '2-digit', hour12: true,
   });
 
   return (
@@ -53,13 +46,13 @@ const TransactionItem: React.FC<{
       </div>
       <div className="flex-shrink-0 flex items-center gap-2">
         <div className="text-right">
-            <p className={`text-xl font-bold ${
-              amount < 0 ? 'text-red-600 dark:text-red-400' : 
-              type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-            }`}>
-            {type === 'credit' ? '+' : '-'}₹{amount.toLocaleString('en-IN')}
+            <p className={`text-xl font-bold ${type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+              {type === 'credit' ? '+' : '-'}₹{amount.toLocaleString('en-IN')}
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 uppercase">{paymentMethod}</p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">
+                Bal: ₹{closingBalance.toLocaleString('en-IN')}
+            </p>
         </div>
         <Link to={`/edit/${id}`} state={{ from }} className="p-2 text-gray-400 hover:text-blue-500 transition-colors" aria-label="Edit transaction">
             <PencilIcon className="h-5 w-5" />
@@ -71,100 +64,94 @@ const TransactionItem: React.FC<{
 
 const GroupHistoryPage: React.FC = () => {
   const { groupName } = useParams<{ groupName: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { transactions, user } = useAppContext();
-  const navigate = useNavigate();
+  const { transactions } = useAppContext();
   const location = useLocation();
-
-  const locationFilter = searchParams.get('location');
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const decodedGroupName = groupName ? decodeURIComponent(groupName) : '';
-  const companyGroup = ['CHOLA', ];
+  const companyGroup = ['CHOLA', 'BAJAJ', 'IDFC', 'HERO', 'LT'];
 
   const groupTransactions = useMemo(() => {
-    let filtered = transactions.filter(tx => companyGroup.includes(tx.company || 'NA'));
-    if (locationFilter) {
-      filtered = filtered.filter(tx => tx.location === locationFilter);
-    }
-    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, locationFilter]);
-  
+    return transactions
+      .filter(tx => companyGroup.includes(tx.company?.toUpperCase() || 'NA'))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [transactions]);
+
   const personsData = useMemo(() => {
-    const persons = new Map<string, { transactions: Transaction[], totalCredit: number, totalDebit: number, netBalance: number }>();
+    const personsMap = new Map<string, Transaction[]>();
 
     groupTransactions.forEach(tx => {
-        const personName = tx.person || 'Unknown';
-        if (!persons.has(personName)) {
-            persons.set(personName, { transactions: [], totalCredit: 0, totalDebit: 0, netBalance: 0 });
+        const personName = (tx.person || 'Unknown').toUpperCase();
+        if (!personsMap.has(personName)) {
+            personsMap.set(personName, []);
         }
-
-        const personData = persons.get(personName)!;
-        personData.transactions.push(tx);
-        if (tx.type === 'credit') {
-            personData.totalCredit += tx.amount;
-        } else {
-            personData.totalDebit += tx.amount;
-        }
-        personData.netBalance = personData.totalCredit - personData.totalDebit;
+        personsMap.get(personName)!.push(tx);
     });
 
-    return Array.from(persons.entries()).map(([person, data]) => ({ person, ...data }));
+    return Array.from(personsMap.entries()).map(([person, txs]) => {
+        const sortedTxs = txs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        let closingBalance = 0;
+        const txsWithBalance: TransactionWithBalance[] = [];
+        for (let i = sortedTxs.length - 1; i >= 0; i--) {
+            const tx = sortedTxs[i];
+            closingBalance += (tx.type === 'credit' ? tx.amount : -tx.amount);
+            txsWithBalance.unshift({ ...tx, closingBalance });
+        }
 
+        const totalCredit = txsWithBalance.reduce((sum, tx) => tx.type === 'credit' ? sum + tx.amount : sum, 0);
+        const totalDebit = txsWithBalance.reduce((sum, tx) => tx.type === 'debit' ? sum + tx.amount : sum, 0);
+        const netBalance = totalCredit - totalDebit;
+
+        return { person, transactions: txsWithBalance, totalCredit, totalDebit, netBalance };
+    });
   }, [groupTransactions]);
-
 
   const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
 
   const handlePersonClick = (personName: string) => {
-    if (expandedPerson === personName) {
-        setExpandedPerson(null);
-    } else {
-        setExpandedPerson(personName);
-    }
+    setExpandedPerson(expandedPerson === personName ? null : personName);
   };
 
-  const handleShare = (person: string, netBalance: number, transactions: Transaction[]) => {
-    let message = `Hello ${person},
+  const handleShare = (person: string, netBalance: number, transactions: TransactionWithBalance[]) => {
+    const upperPerson = person.toUpperCase();
+    const contactKey = Object.keys(contacts).find(key => upperPerson.includes(key));
+    const whatsappNumber = contactKey ? contacts[contactKey] : undefined;
 
-Here is your transaction summary:
+    if (!whatsappNumber) {
+      alert(`WhatsApp number not found for ${person}. Please add it to the contacts list.`);
+      return;
+    }
 
-`;
-
+    let message = `Hello ${person},\n\nHere is your transaction summary:\n\n`;
     transactions.slice(0, 5).forEach(tx => {
-        const formattedDate = new Date(tx.date).toLocaleString('en-IN', {
-            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-        });
+        const formattedDate = new Date(tx.date).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
         const sign = tx.type === 'credit' ? '+' : '-';
-        message += `${formattedDate}: ${sign}₹${tx.amount.toLocaleString('en-IN')} (${tx.paymentMethod})
-`;
+        message += `${formattedDate}: ${sign}₹${tx.amount.toLocaleString('en-IN')} (${tx.paymentMethod}) - Closing Bal: ₹${tx.closingBalance.toLocaleString('en-IN')}\n`;
     });
-
-    message += `
-Net Balance: ₹${netBalance.toLocaleString('en-IN')}`;
-
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    message += `\nFinal Net Balance: ₹${netBalance.toLocaleString('en-IN')}`;
+    
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
   if (!decodedGroupName) return <div className="text-center p-8">Group name not found.</div>;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <header className="flex flex-wrap items-center justify-between gap-4 mb-6 no-print">
+    <div className="max-w-7xl mx-auto pb-16">
+      <header className="flex flex-wrap items-center justify-between gap-4 my-6 px-4 no-print">
           <div className="flex items-center gap-4">
               <Link to={"/summary"} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
                   <ArrowLeftIcon className="h-5 w-5"/><span>Back to Summaries</span>
               </Link>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white w-full sm:w-auto text-center sm:text-left">
-            {decodedGroupName} History
+            {decodedGroupName} Finance History
           </h2>
       </header>
 
     {personsData.map(({ person, transactions, totalCredit, totalDebit, netBalance }) => (
-        <div key={person} className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-4">
+        <div key={person} className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-4 mx-4">
             <div className="p-4 cursor-pointer" onClick={() => handlePersonClick(person)}>
                 <div className="flex justify-between items-center">
                     <h3 className="font-semibold text-xl text-gray-900 dark:text-white">{person}</h3>
@@ -187,7 +174,7 @@ Net Balance: ₹${netBalance.toLocaleString('en-IN')}`;
                             key={tx.id} 
                             transaction={tx} 
                             isSelected={selectedIds.includes(tx.id)} 
-                            onSelect={() => {}} 
+                            onSelect={(id) => setSelectedIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id])} 
                             from={location.pathname + location.search} 
                         />
                     ))}

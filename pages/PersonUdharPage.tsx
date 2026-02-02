@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction, TransactionType } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
@@ -14,6 +14,7 @@ import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 const PersonUdharPage: React.FC = () => {
     const { personName } = useParams<{ personName: string }>();
     const { transactions, deleteTransactionsByIds, addTransaction } = useAppContext();
+    const navigate = useNavigate();
     const user = localStorage.getItem('ali_enterprises_user');
     const userData = user ? JSON.parse(user) : null;
     const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
@@ -56,6 +57,13 @@ const PersonUdharPage: React.FC = () => {
         setModalError(null);
         setIsModalOpen(true);
     }
+    
+    const currencyFormatter = new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    });
 
     const handleSaveTransaction = async () => {
         if (amount <= 0) { setModalError('Amount must be positive.'); return; }
@@ -107,51 +115,61 @@ const PersonUdharPage: React.FC = () => {
 
     const TransactionItem: React.FC<{ transaction: Transaction }> = ({ transaction }) => {
         const { id, date, type, amount, paymentMethod, notes } = transaction;
-        const formattedDate = new Date(date).toLocaleString('en-IN', { day: '2-digit', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+        const formattedDate = new Date(date).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' });
 
         return (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md flex items-center p-4 gap-4">
-                {type === 'credit' ? <CheckCircleIcon className="h-8 w-8 text-green-500 flex-shrink-0" /> : <MinusCircleIcon className="h-8 w-8 text-red-500 flex-shrink-0" />}
-                <div className="flex-grow truncate">
-                    <p className={`text-lg ${type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {type === 'credit' ? '+' : '-'}₹{amount.toLocaleString('en-IN')}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{formattedDate}</p>
-                    {notes && <p className="text-sm text-gray-600 dark:text-gray-300 truncate mt-1">{notes}</p>}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md flex items-start p-4 gap-4">
+                {type === 'credit' ? 
+                    <CheckCircleIcon className="h-8 w-8 text-green-500 flex-shrink-0 mt-1" /> : 
+                    <MinusCircleIcon className="h-8 w-8 text-red-500 flex-shrink-0 mt-1" />
+                }
+                <div className="flex-grow">
+                    <div className="flex justify-between items-center">
+                        <p className={`text-lg font-bold ${type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {currencyFormatter.format(amount)}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 uppercase font-medium">{paymentMethod}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{formattedDate}</p>
+                    {notes && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{notes}</p>}
                 </div>
-                <div className="flex-shrink-0 flex items-center gap-2">
-                    <p className="text-sm text-gray-400 dark:text-gray-500 uppercase">{paymentMethod}</p>
-                    <Link to={`/edit/${id}`} state={{ from: window.location.pathname }} className="p-2 text-gray-400 hover:text-blue-500"><PencilIcon className="h-5 w-5" /></Link>
-                    <button onClick={() => handleDeleteClick(id)} className="p-2 text-gray-400 hover:text-red-500"><TrashIcon className="h-5 w-5" /></button>
+                <div className="flex-shrink-0 flex flex-col sm:flex-row items-center gap-2 -mr-2">
+                    <Link to={`/edit/${id}`} state={{ from: window.location.pathname }} className="p-2 text-gray-400 hover:text-blue-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"><PencilIcon className="h-5 w-5" /></Link>
+                    <button onClick={() => handleDeleteClick(id)} className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"><TrashIcon className="h-5 w-5" /></button>
                 </div>
             </div>
         );
     };
 
     return (
-        <div className="max-w-4xl mx-auto">
-            <header className="flex items-center justify-between gap-4 mb-6">
-                <Link to="/udhar" className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeftIcon className="h-5 w-5"/><span>Back</span></Link>
-                <h2 className="text-2xl text-gray-900 dark:text-white">{personName} - Udhar</h2>
+        <div className="max-w-4xl mx-auto px-2 pb-24">
+            <header className="flex items-center justify-between gap-4 my-6">
+                <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600"><ArrowLeftIcon className="h-5 w-5"/><span>Back</span></button>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">{personName} - Udhar</h1>
                 <div className="flex gap-2">
-                    <button onClick={() => openAddTransactionModal('credit')} className="flex items-center gap-1 bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600"><PlusIcon className="h-5 w-5"/> Credit</button>
-                    <button onClick={() => openAddTransactionModal('debit')} className="flex items-center gap-1 bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600"><PlusIcon className="h-5 w-5"/> Debit</button>
+                    <button onClick={() => openAddTransactionModal('credit')} className="flex items-center gap-1 bg-green-500 text-white px-3 py-2 rounded-md hover:bg-green-600 text-sm font-medium"><PlusIcon className="h-4 w-4"/> Cr</button>
+                    <button onClick={() => openAddTransactionModal('debit')} className="flex items-center gap-1 bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600 text-sm font-medium"><PlusIcon className="h-4 w-4"/> Dr</button>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Credit</p><p className="text-2xl text-green-600 dark:text-green-400 mt-1">₹{summary.totalCredit.toLocaleString('en-IN')}</p></div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Debit</p><p className="text-2xl text-red-600 dark:text-red-400 mt-1">₹{summary.totalDebit.toLocaleString('en-IN')}</p></div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 flex justify-between items-center">
-                    <div><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Net Balance</p><p className={`text-2xl mt-1 ${netBalance >= 0 ? 'text-blue-600' : 'text-orange-500'}`}>₹{netBalance.toLocaleString('en-IN')}</p></div>
-                    <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full"><StarIcon className="h-6 w-6 text-blue-600" /></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <SummaryCard title="Total Credit" amount={summary.totalCredit} color="green" />
+                <SummaryCard title="Total Debit" amount={summary.totalDebit} color="red" />
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex justify-between items-center">
+                    <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Net Balance</p>
+                        <p className={`text-2xl font-bold mt-1 ${netBalance >= 0 ? 'text-blue-600' : 'text-orange-500'}`}>{currencyFormatter.format(netBalance)}</p>
+                    </div>
+                    <div className="bg-blue-100 dark:bg-blue-900/50 p-3 rounded-full"><StarIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" /></div>
                 </div>
             </div>
             
             {personTransactions.length > 0 ? (
                 <div className="space-y-4">{personTransactions.map(tx => <TransactionItem key={tx.id} transaction={tx} />)}</div>
             ) : (
-                <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-xl mt-4"><p className="text-gray-500 dark:text-gray-400">No udhar transactions found for {personName}.</p></div>
+                <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-xl mt-4">
+                    <p className="text-gray-500 dark:text-gray-400">No udhar transactions found for {personName}.</p>
+                </div>
             )}
 
             {isModalOpen && (
@@ -169,8 +187,8 @@ const PersonUdharPage: React.FC = () => {
                             </div>
                             <div className="relative">
                                 <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Date & Time</label>
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><CalendarDaysIcon className="h-5 w-5 text-gray-400" /></div>
-                                <input type="datetime-local" id="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border rounded-md sm:text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600" />
+                                <div className="absolute inset-y-0 left-3 top-7 flex items-center pointer-events-none"><CalendarDaysIcon className="h-5 w-5 text-gray-400" /></div>
+                                <input type="datetime-local" id="date" value={manualDate} onChange={e => setManualDate(e.target.value)} className="block w-full pl-10 pr-3 py-2 border rounded-md sm:text-sm bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 mt-1" />
                             </div>
                         </div>
                         {modalError && <div className="mt-4 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-200 p-2 rounded-lg text-sm">{modalError}</div>}
@@ -185,7 +203,7 @@ const PersonUdharPage: React.FC = () => {
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md">
-                        <h3 className="text-lg text-gray-900 dark:text-white">Confirm Deletion</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Confirm Deletion</h3>
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">Are you sure you want to delete this transaction? This cannot be undone.</p>
                         {deleteError && <div className="mt-4 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-200 p-2 rounded-lg text-sm">{deleteError}</div>}
                         <div className="mt-6 flex justify-end gap-4">
@@ -198,5 +216,21 @@ const PersonUdharPage: React.FC = () => {
         </div>
     );
 }
+
+const SummaryCard: React.FC<{title: string, amount: number, color: string}> = ({ title, amount, color }) => {
+    const currencyFormatter = new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    });
+    
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+            <p className={`text-2xl font-bold text-${color}-600 dark:text-${color}-400 mt-1`}>{currencyFormatter.format(amount)}</p>
+        </div>
+    );
+};
 
 export default PersonUdharPage;
