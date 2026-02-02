@@ -131,7 +131,7 @@ const GroupHistoryPage: React.FC = () => {
     });
     message += `\nFinal Net Balance: ₹${netBalance.toLocaleString('en-IN')}`;
     
-    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `whatsapp://send?phone=${whatsappNumber}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
