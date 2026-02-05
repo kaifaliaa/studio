@@ -376,27 +376,25 @@ useEffect(() => {
         return updatedVault;
     });
 
-    // Persist and Sync in Background
-    (async () => {
-      try {
-        for (const id of ids) {
-          await localDB.deleteTransaction(id);
-        }
-        console.log(`✅ Transactions ${ids.join(', ')} deleted locally.`);
-
-        if (googleSheetsConnected) {
-          setSyncStatus('syncing');
-          for (const id of ids) {
-            await googleSheets.deleteTransaction(id);
-          }
-          setSyncStatus('success');
-          console.log(`✅ Transactions ${ids.join(', ')} deleted from Google Sheets.`);
-        }
-      } catch (error) {
-        setSyncStatus('error');
-        console.error(`❌ Failed to delete or sync transactions ${ids.join(', ')}:`, error);
+    try {
+      for (const id of ids) {
+        await localDB.deleteTransaction(id);
       }
-    })();
+      console.log(`✅ Transactions ${ids.join(', ')} deleted locally.`);
+
+      if (googleSheetsConnected) {
+        setSyncStatus('syncing');
+        for (const id of ids) {
+          await googleSheets.deleteTransaction(id);
+        }
+        setSyncStatus('success');
+        console.log(`✅ Transactions ${ids.join(', ')} deleted from Google Sheets.`);
+      }
+    } catch (error) {
+      setSyncStatus('error');
+      console.error(`❌ Failed to delete or sync transactions ${ids.join(', ')}:`, error);
+      throw error;
+    }
   }, [allTransactions, googleSheetsConnected]);
 
   const addCompany = useCallback(async (companyName: string) => {

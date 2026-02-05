@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { UserIcon } from '../components/icons/UserIcon';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
+import { sendTelegramMessage } from '../services/telegramService';
 
 const UpiCreditPage: React.FC = () => {
   const { addTransaction } = useAppContext();
@@ -11,13 +12,12 @@ const UpiCreditPage: React.FC = () => {
 
   const { companyName, companyLocation } = location.state || {};
 
-  // Get current user
   const user = localStorage.getItem('ali_enterprises_user');
   const userData = user ? JSON.parse(user) : null;
   const currentUserName = userData?.displayName || userData?.email || 'Unknown User';
 
   const [person, setPerson] = useState('');
-  const [amount, setAmount] = useState<number | ''>('');
+  const [amount, setAmount] = useState<number | ''>(0);
   const [manualDate, setManualDate] = useState(new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 19));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +39,8 @@ const UpiCreditPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await addTransaction({
-        type: 'credit',
+      const transactionData = {
+        type: 'credit' as const,
         paymentMethod: 'upi',
         company: companyName,
         person: person || 'N/A',
@@ -50,10 +50,38 @@ const UpiCreditPage: React.FC = () => {
         notes: 'UPI Transaction',
         breakdown: {},
         manualDate,
+      };
+
+      await addTransaction(transactionData);
+
+      const formattedDate = new Date(manualDate).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       });
+
+      const telegramMessage = `
+*New UPI Credit Entry!*
+
+*Type:* Credit
+*Payment Method:* UPI
+*Amount:* ₹${Number(amount).toLocaleString('en-IN')}
+*Person:* ${person || 'N/A'}
+*Company:* ${companyName}
+*Location:* ${companyLocation}
+*Recorded By:* ${currentUserName}
+*Date:* ${formattedDate}
+      `;
+
+      await sendTelegramMessage(telegramMessage);
+
       navigate(companyHistoryUrl);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
+    } finally {
       setIsSubmitting(false);
     }
   };

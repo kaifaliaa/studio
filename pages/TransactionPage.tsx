@@ -10,6 +10,7 @@ import { MapPinIcon } from '../components/icons/MapPinIcon';
 import { TrendingUpIcon } from '../components/icons/TrendingUpIcon';
 import { TrendingDownIcon } from '../components/icons/TrendingDownIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
+import { sendTelegramMessage } from '../services/telegramService';
 
 const TransactionPage: React.FC = () => {
   const { addTransaction, companyNames, locations } = useAppContext();
@@ -60,7 +61,6 @@ const TransactionPage: React.FC = () => {
         setCompany('');
         setIsPersonalUdhar(false);
         setPrefilledType(null);
-        // Clear navigation state
         navigate('.', { replace: true });
     }
     setLocation('');
@@ -84,7 +84,7 @@ const TransactionPage: React.FC = () => {
     setSuccessMessage(null);
 
     try {
-      await addTransaction({
+      const transactionData = {
         type: transactionType,
         paymentMethod: 'cash',
         company: company || 'NA',
@@ -95,7 +95,45 @@ const TransactionPage: React.FC = () => {
         notes: '',
         breakdown,
         manualDate: manualDate,
+      };
+
+      await addTransaction(transactionData);
+
+      const formattedDate = new Date(manualDate).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       });
+
+      const breakdownString = DENOMINATIONS
+        .map(denom => {
+            const count = breakdown[denom];
+            return count ? `₹${denom} x ${count} = ${denom * count}` : null;
+        })
+        .filter(Boolean)
+        .join('\n');
+
+
+      const telegramMessage = `
+*New Transaction Alert!*
+
+*Type:* ${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}
+*Amount:* ₹${totalAmount.toLocaleString('en-IN')}
+*Person:* ${person || 'N/A'}
+*Company:* ${company || 'NA'}
+*Location:* ${location}
+*Recorded By:* ${recordedBy}
+*Date:* ${formattedDate}
+${breakdownString ? `
+*Breakdown:*
+${breakdownString}` : ''}
+      `;
+
+      await sendTelegramMessage(telegramMessage);
+
       setSuccessMessage(`Transaction of ₹${totalAmount.toLocaleString('en-IN')} recorded successfully!`);
       resetForm(true);
     } catch (err: any) {

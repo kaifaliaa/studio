@@ -10,6 +10,7 @@ import { StarIcon } from '../components/icons/StarIcon';
 import { PlusIcon } from '../components/icons/PlusIcon';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
+import { sendTelegramMessage } from '../services/telegramService';
 
 const PersonUdharPage: React.FC = () => {
     const { personName } = useParams<{ personName: string }>();
@@ -72,9 +73,9 @@ const PersonUdharPage: React.FC = () => {
         setModalError(null);
 
         try {
-            await addTransaction({
+            const transactionData = {
                 type: modalType,
-                paymentMethod: 'cash',
+                paymentMethod: 'cash' as const,
                 company: 'NA',
                 person: personName || '',
                 location: 'NA',
@@ -83,7 +84,31 @@ const PersonUdharPage: React.FC = () => {
                 notes: remark,
                 manualDate: manualDate,
                 breakdown: {},
+            };
+
+            await addTransaction(transactionData);
+
+            const formattedDate = new Date(manualDate).toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
             });
+
+            const telegramMessage = `
+*New Personal Udhaar Entry!*
+
+*Type:* ${modalType.charAt(0).toUpperCase() + modalType.slice(1)}
+*Amount:* ₹${amount.toLocaleString('en-IN')}
+*Person:* ${personName}
+${remark ? `*Remark:* ${remark}\n` : ''}*Recorded By:* ${currentUserName}
+*Date:* ${formattedDate}
+            `;
+
+            await sendTelegramMessage(telegramMessage);
+
             setIsModalOpen(false);
         } catch(err: any) {
             setModalError(err.message || 'An unexpected error occurred.');
@@ -100,10 +125,40 @@ const PersonUdharPage: React.FC = () => {
 
     const handleConfirmDelete = async () => {
         if (!selectedId) return;
+        
+        const transactionToDelete = personTransactions.find(tx => tx.id === selectedId);
+
         setIsDeleting(true);
         setDeleteError(null);
         try {
             await deleteTransactionsByIds([selectedId]);
+
+            if (transactionToDelete) {
+                const deletionDate = new Date().toLocaleString('en-IN', {
+                    timeZone: 'Asia/Kolkata',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+
+                const telegramMessage = `
+*Transaction Deleted!*
+
+*Original Details:*
+  - *Type:* ${transactionToDelete.type}
+  - *Amount:* ₹${transactionToDelete.amount.toLocaleString('en-IN')}
+  - *Person:* ${transactionToDelete.person}
+  - *Original Date:* ${new Date(transactionToDelete.date).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+
+*Deleted By:* ${currentUserName}
+*Deletion Time:* ${deletionDate}
+                `;
+                
+                await sendTelegramMessage(telegramMessage);
+            }
+
             setIsDeleteModalOpen(false);
             setSelectedId(null);
         } catch (err: any) { 
