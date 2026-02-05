@@ -1,3 +1,4 @@
+
 import React, { useMemo, useEffect, useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -114,30 +115,18 @@ const ReportPage: React.FC = () => {
         day: '2-digit', month: 'numeric', year: 'numeric',
         hour: '2-digit', minute: '2-digit', hour12: true,
     });
-
-    const getFilterDescription = () => {
-        const parts = [];
-        if (!showAllDates) {
-            parts.push(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`);
-        } else {
-            if (filterYear !== 'all') parts.push(`Year: ${filterYear}`);
-            if (filterMonth !== 'all') {
-                const monthName = new Date(2000, parseInt(filterMonth) - 1).toLocaleString('default', { month: 'long' });
-                parts.push(`Month: ${monthName}`);
-            }
-            if (filterDay !== 'all') parts.push(`Day: ${filterDay}`);
+    
+    const getStatementPeriod = () => {
+        if (showAllDates) {
+            return `${filterDay}/${filterMonth}/${filterYear}`;
         }
-        if (locationFilter && locationFilter !== 'all') parts.push(`Location: ${locationFilter}`);
-        if (filterType !== 'all') parts.push(`Type: ${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`);
-        if (searchTerm.trim()) parts.push(`Search: "${searchTerm.trim()}"`);
-        return parts.length > 0 ? parts.join(' | ') : 'All transactions';
+        return new Date().toLocaleDateString('en-IN');
     };
 
     if (!reportData) {
         return (
             <div className="text-center p-8">
                 <p>No transactions found for {decodedCompanyName} matching the applied filters.</p>
-                <p className="text-sm text-gray-600 mt-2">Filters applied: {getFilterDescription()}</p>
                 <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="text-blue-600 hover:underline mt-4 inline-block no-print">Go Back</Link>
             </div>
         );
@@ -157,12 +146,28 @@ const ReportPage: React.FC = () => {
                     <ArrowLeftIcon className="h-5 w-5"/><span>Back to History</span>
                 </Link>
              </div>
-             <div className="text-center mb-2 sm:mb-4">
-                 <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-black uppercase">Report for {decodedCompanyName}</h1>
-                 <p className="text-xs sm:text-sm text-gray-600">Generated on: {formattedDate(generationDate)}</p>
-                 <p className="text-xs sm:text-sm text-blue-600 font-medium">Filters: {getFilterDescription()}</p>
-             </div>
+            
+            {/* CORRECTED HEADER */}
+            <header className="flex justify-between items-start mb-8">
+                <div>
+                    <h1 className="text-4xl font-bold text-black">ALI ENTERPRISES</h1>
+                    <p className="text-lg text-gray-600 tracking-wider">FINANCIAL TRANSACTION STATEMENT</p>
+                </div>
+                <div className="text-right">
+                    <span className="bg-black text-white text-sm font-bold px-3 py-1">CONFIDENTIAL REPORT</span>
+                    <h2 className="text-2xl font-semibold mt-2">{decodedCompanyName}</h2>
+                    <p className="text-xs text-gray-500 mt-1">GENERATED: {formattedDate(generationDate)}</p>
+                    <p className="text-xs text-gray-500">LOCATION: {locationFilter || 'N/A'}</p>
+                </div>
+            </header>
+            
+            <div className="mb-8">
+                <p className="text-sm"><span className="font-bold">STATEMENT PERIOD:</span> {getStatementPeriod()}</p>
+            </div>
 
+            <hr className="border-black mb-8" />
+            
+            {/* ORIGINAL TABLE FORMAT */}
             <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse border border-black text-xs sm:text-sm">
                     <thead className="font-bold bg-gray-100">
@@ -179,7 +184,7 @@ const ReportPage: React.FC = () => {
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">1st</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">2nd</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm_text-sm">3rd</th>
+                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">3rd</th>
                             <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
                         </tr>
                     </thead>
@@ -194,13 +199,10 @@ const ReportPage: React.FC = () => {
                         ))}
                     </tbody>
                     <tfoot className="font-bold">
-                        
                         <tr>
                             <td colSpan={9} className="border-t-2 border-black p-1 sm:p-2 text-right text-xs sm:text-sm">Total Credit</td>
                             <td className="border-t-2 border-black border-l border-black p-1 sm:p-2 text-right bg-green-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalCredit)}</td>
                         </tr>
-
-                       
                         <tr>
                             <td className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Entry</td>
                             {[0, 1, 2, 3].map(i => (
@@ -208,12 +210,9 @@ const ReportPage: React.FC = () => {
                                     {reportData.debitAmounts[i] ? currencyFormatter.format(reportData.debitAmounts[i]) : ''}
                                 </td>
                             ))}
-                            
                             <td colSpan={4} className="border-y border-r border-black p-1 sm:p-2"></td>
                             <td className="border border-black p-1 sm:p-2 text-right bg-red-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalDebit)}</td>
                         </tr>
-
-                       
                         <tr>
                             <td colSpan={9} className="p-1 sm:p-2 text-right text-xs sm:text-sm">Closing Balance</td>
                             <td className={`border border-black p-1 sm:p-2 text-right text-xs sm:text-sm ${
@@ -221,14 +220,12 @@ const ReportPage: React.FC = () => {
                                     ? 'bg-green-100 text-green-800' 
                                     : 'bg-red-100 text-red-600 font-bold'
                             }`}>
-                                {reportData.closingBalance < 0 ? '-' : ''}₹{Math.abs(reportData.closingBalance).toLocaleString('en-IN')}
+                                {currencyFormatter.format(reportData.closingBalance)}
                             </td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
-
-            
         </div>
     );
 };

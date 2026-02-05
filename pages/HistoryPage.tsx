@@ -1,20 +1,21 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { Transaction, NoteCounts } from '../types';
+import { Transaction } from '../types';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
 import { ChevronDownIcon } from '../components/icons/ChevronDownIcon';
 import { ChevronRightIcon } from '../components/icons/ChevronRightIcon';
 import { ArrowPathIcon } from '../components/icons/ArrowPathIcon';
-import { DENOMINATIONS } from '../constants';
 import { WalletIcon } from '../components/icons/WalletIcon';
 import TotalVaultDetails from '../components/TotalVaultDetails';
-import { DocumentArrowDownIcon } from '../components/icons/DocumentArrowDownIcon';
+import { sendTelegramMessage } from '../services/telegramService';
+import { useAuth } from '../context/AuthContext';
 
 const HistoryPage: React.FC = () => {
   const { transactions, deleteTransactionsByIds, companyNames, locations, manualSync, syncStatus, personNames, vault } = useAppContext();
   const location = useLocation();
+  const { user } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCompany, setFilterCompany] = useState('all');
@@ -166,18 +167,37 @@ const HistoryPage: React.FC = () => {
   };
   
   const handleConfirmDelete = async () => {
-      setIsDeleting(true);
-      setDeleteError(null);
-      try {
-          await deleteTransactionsByIds(selectedIds);
-          setIsDeleteModalOpen(false);
-          setSelectedIds([]);
-      } catch (err: any) {
-          setDeleteError(err.message || 'Failed to delete transactions.');
-      } finally {
-          setIsDeleting(false);
-      }
-  };
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+        const transactionsToDelete = transactions.filter(tx => selectedIds.includes(tx.id));
+        await deleteTransactionsByIds(selectedIds);
+
+        const sender = user?.email?.split('@')[0] || 'Unknown user';
+        const message = `
+        *Transaction Deletion Alert*
+        ${transactionsToDelete.map(tx => `
+        *Transaction Details:*
+        - *ID:* \`${tx.id}\`
+        - *Amount:* ${tx.amount}
+        - *Type:* ${tx.type}
+        - *Person:* ${tx.person}
+        - *Company:* ${tx.company}
+        - *Location:* ${tx.location}
+        - *Date:* ${new Date(tx.date).toLocaleString()}
+        - *Deleted By:* ${sender}
+        `).join('\\n')}
+        `;
+        await sendTelegramMessage(message);
+
+        setIsDeleteModalOpen(false);
+        setSelectedIds([]);
+    } catch (err: any) {
+        setDeleteError(err.message || 'Failed to delete transactions.');
+    } finally {
+        setIsDeleting(false);
+    }
+};
 
   const handleSync = async () => {
     try {

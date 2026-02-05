@@ -19,10 +19,12 @@
     "@vitejs/plugin-react": "^4.7.0",
     "firebase": "^10.7.1",
     "html2canvas": "^1.4.1",
+    "html2pdf.js": "^0.14.0",
     "jspdf": "^4.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "6.24.1",
+    "react-to-print": "^3.2.0",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
