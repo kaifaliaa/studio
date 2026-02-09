@@ -108,7 +108,11 @@ const ReportPage: React.FC = () => {
         const totalDebit = debitAmounts.reduce((sum, amount) => sum + amount, 0);
         const closingBalance = totalCredit - totalDebit;
 
-        return { customers, debitAmounts, totalCredit, totalDebit, closingBalance };
+        const maxCashCount = Math.max(0, ...customers.map(c => c.cash.length));
+        const maxUpiCount = Math.max(0, ...customers.map(c => c.upi.length));
+        const maxDebitCount = debitAmounts.length;
+
+        return { customers, debitAmounts, totalCredit, totalDebit, closingBalance, maxCashCount, maxUpiCount, maxDebitCount };
     }, [companyTransactions]);
 
     const formattedDate = (date: Date) => date.toLocaleString('en-IN', {
@@ -139,6 +143,8 @@ const ReportPage: React.FC = () => {
         maximumFractionDigits: 0,
     });
 
+    const totalColumns = 1 + reportData.maxCashCount + reportData.maxUpiCount + 1;
+
     return (
         <div className="bg-white p-2 sm:p-4 md:p-6 lg:p-8 print-container min-w-0">
              <div className="no-print mb-4">
@@ -147,7 +153,6 @@ const ReportPage: React.FC = () => {
                 </Link>
              </div>
             
-            {/* CORRECTED HEADER */}
             <header className="flex justify-between items-start mb-8">
                 <div>
                     <h1 className="text-4xl font-bold text-black">ALI ENTERPRISES</h1>
@@ -167,55 +172,61 @@ const ReportPage: React.FC = () => {
 
             <hr className="border-black mb-8" />
             
-            {/* ORIGINAL TABLE FORMAT */}
             <div className="overflow-x-auto">
                 <table className="min-w-full border-collapse border border-black text-xs sm:text-sm">
                     <thead className="font-bold bg-gray-100">
                         <tr>
-                            <th rowSpan={2} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Customer Name</th>
-                            <th colSpan={4} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Cash</th>
-                            <th colSpan={4} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">UPI</th>
-                            <th rowSpan={2} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Total Credit</th>
+                            <th rowSpan={2} className="border border-black p-1 sm:p-2">Customer Name</th>
+                            {reportData.maxCashCount > 0 && <th colSpan={reportData.maxCashCount} className="border border-black p-1 sm:p-2">Cash</th>}
+                            {reportData.maxUpiCount > 0 && <th colSpan={reportData.maxUpiCount} className="border border-black p-1 sm:p-2">UPI</th>}
+                            <th rowSpan={2} className="border border-black p-1 sm:p-2">Total Credit</th>
                         </tr>
                         <tr>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">1st</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">2nd</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">3rd</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">1st</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">2nd</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">3rd</th>
-                            <th className="border border-black p-1 sm:p-2 text-xs sm:text-sm">4th</th>
+                            {Array.from({ length: reportData.maxCashCount }, (_, i) => (
+                                <th key={`cash-header-${i}`} className="border border-black p-1 sm:p-2">{i + 1}</th>
+                            ))}
+                            {Array.from({ length: reportData.maxUpiCount }, (_, i) => (
+                                <th key={`upi-header-${i}`} className="border border-black p-1 sm:p-2">{i + 1}</th>
+                            ))}
                         </tr>
                     </thead>
                     <tbody>
                         {reportData.customers.map(customer => (
                             <tr key={customer.name}>
-                                <td className="border border-black p-1 sm:p-2 font-semibold text-xs sm:text-sm">{customer.name}</td>
-                                {[0, 1, 2, 3].map(i => <td key={`cash-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}</td>)}
-                                {[0, 1, 2, 3].map(i => <td key={`upi-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}</td>)}
-                                <td className="border border-black p-1 sm:p-2 text-right font-bold text-xs sm:text-sm">{currencyFormatter.format(customer.total)}</td>
+                                <td className="border border-black p-1 sm:p-2 font-semibold">{customer.name}</td>
+                                {Array.from({ length: reportData.maxCashCount }, (_, i) => (
+                                    <td key={`cash-cell-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold">
+                                        {customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}
+                                    </td>
+                                ))}
+                                {Array.from({ length: reportData.maxUpiCount }, (_, i) => (
+                                    <td key={`upi-cell-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold">
+                                        {customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}
+                                    </td>
+                                ))}
+                                <td className="border border-black p-1 sm:p-2 text-right font-bold">{currencyFormatter.format(customer.total)}</td>
                             </tr>
                         ))}
                     </tbody>
                     <tfoot className="font-bold">
                         <tr>
-                            <td colSpan={9} className="border-t-2 border-black p-1 sm:p-2 text-right text-xs sm:text-sm">Total Credit</td>
-                            <td className="border-t-2 border-black border-l border-black p-1 sm:p-2 text-right bg-green-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalCredit)}</td>
+                            <td colSpan={1 + reportData.maxCashCount + reportData.maxUpiCount} className="border-t-2 border-black p-1 sm:p-2 text-right">Total Credit</td>
+                            <td className="border-t-2 border-black border-l border-black p-1 sm:p-2 text-right bg-green-100">{currencyFormatter.format(reportData.totalCredit)}</td>
                         </tr>
                         <tr>
-                            <td className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Entry</td>
-                            {[0, 1, 2, 3].map(i => (
-                                <td key={`debit-cash-${i}`} className="border border-black p-1 sm:p-2 text-right text-xs sm:text-sm">
+                            <td className="border border-black p-1 sm:p-2">Entry</td>
+                             {Array.from({ length: Math.max(reportData.maxCashCount, reportData.maxDebitCount) }, (_, i) => (
+                                <td key={`debit-cash-${i}`} className="border border-black p-1 sm:p-2 text-right">
                                     {reportData.debitAmounts[i] ? currencyFormatter.format(reportData.debitAmounts[i]) : ''}
                                 </td>
                             ))}
-                            <td colSpan={4} className="border-y border-r border-black p-1 sm:p-2"></td>
-                            <td className="border border-black p-1 sm:p-2 text-right bg-red-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalDebit)}</td>
+                             {reportData.maxCashCount < reportData.maxDebitCount && <td colSpan={reportData.maxDebitCount - reportData.maxCashCount}></td>}
+                            <td colSpan={reportData.maxUpiCount} className="border-y border-r border-black p-1 sm:p-2"></td>
+                            <td className="border border-black p-1 sm:p-2 text-right bg-red-100">{currencyFormatter.format(reportData.totalDebit)}</td>
                         </tr>
                         <tr>
-                            <td colSpan={9} className="p-1 sm:p-2 text-right text-xs sm:text-sm">Closing Balance</td>
-                            <td className={`border border-black p-1 sm:p-2 text-right text-xs sm:text-sm ${
+                            <td colSpan={totalColumns -1} className="p-1 sm:p-2 text-right">Closing Balance</td>
+                            <td className={`border border-black p-1 sm:p-2 text-right ${
                                 reportData.closingBalance >= 0 
                                     ? 'bg-green-100 text-green-800' 
                                     : 'bg-red-100 text-red-600 font-bold'
