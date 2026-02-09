@@ -1,0 +1,34 @@
+
+@media print {
+  @page {
+    size: auto;
+    margin: 0;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-container, .print-container * {
+    visibility: visible;
+  }
+  .print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .print-container th,
+  .print-container td {
+    text-align: center !important;
+    font-weight: bold !important;
+  }
+  .print-container .text-right {
+    text-align: right !important;
+  }
+}
