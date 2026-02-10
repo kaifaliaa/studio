@@ -3,6 +3,60 @@ import { googleSheets } from './googleSheets';
 import { Transaction } from '../types';
 
 class SyncService {
+  private isSyncing = false;
+
+  constructor() {
+    this.startPeriodicSync();
+  }
+
+  private startPeriodicSync() {
+    setInterval(async () => {
+      if (!this.isSyncing) {
+        await this.syncWithGoogleSheets();
+      }
+    }, 60000); // Sync every 60 seconds
+  }
+
+  public async syncWithGoogleSheets(): Promise<void> {
+    this.isSyncing = true;
+    try {
+      console.log('Starting sync with Google Sheets...');
+
+      const localTransactions = await localDB.getTransactions();
+      const sheetTransactions = await googleSheets.getAllTransactions();
+
+      // Upload new local transactions to Google Sheets
+      const newLocalTransactions = localTransactions.filter(localT => 
+        !sheetTransactions.some(sheetT => sheetT.id === localT.id)
+      );
+
+      if (newLocalTransactions.length > 0) {
+        console.log(`Found ${newLocalTransactions.length} new local transactions to upload.`);
+        await googleSheets.addTransactions(newLocalTransactions);
+        console.log('Successfully uploaded new local transactions.');
+      }
+
+      // Download new sheet transactions to local DB
+      const newSheetTransactions = sheetTransactions.filter(sheetT =>
+        !localTransactions.some(localT => localT.id === sheetT.id)
+      );
+
+      if (newSheetTransactions.length > 0) {
+        console.log(`Found ${newSheetTransactions.length} new transactions in Google Sheets to download.`);
+        for (const transaction of newSheetTransactions) {
+          await localDB.addTransaction(transaction);
+        }
+        console.log('Successfully downloaded new transactions from Google Sheets.');
+      }
+      
+      console.log('Sync with Google Sheets finished.');
+    } catch (error) {
+      console.error('Error during sync with Google Sheets:', error);
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
   public async findAndRemoveDuplicateTransactions(): Promise<void> {
     try {
       console.log('Starting duplicate transaction check...');
