@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.0.2",
-    "@capacitor/cli": "^7.4.5",
+    "@capacitor/cli": "^2.5.0",
     "@capacitor/core": "^8.0.2",
     "@capacitor/filesystem": "^8.1.0",
     "@types/uuid": "^10.0.0",
@@ -23,7 +23,7 @@
     "jspdf": "^4.1.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "6.24.1",
+    "react-router-dom": "^6.30.3",
     "react-to-print": "^3.2.0",
     "uuid": "^13.0.0"
   },

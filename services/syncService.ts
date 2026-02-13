@@ -22,13 +22,16 @@ class SyncService {
     try {
       console.log('Starting sync with Google Sheets...');
 
-      const localTransactions = await localDB.getTransactions();
-      const sheetTransactions = await googleSheets.getAllTransactions();
+      const [localTransactions, sheetTransactions] = await Promise.all([
+        localDB.getTransactions(),
+        googleSheets.getAllTransactions(),
+      ]);
+
+      const localTransactionIds = new Set(localTransactions.map(t => t.id));
+      const sheetTransactionIds = new Set(sheetTransactions.map(t => t.id));
 
       // Upload new local transactions to Google Sheets
-      const newLocalTransactions = localTransactions.filter(localT => 
-        !sheetTransactions.some(sheetT => sheetT.id === localT.id)
-      );
+      const newLocalTransactions = localTransactions.filter(localT => !sheetTransactionIds.has(localT.id));
 
       if (newLocalTransactions.length > 0) {
         console.log(`Found ${newLocalTransactions.length} new local transactions to upload.`);
@@ -37,15 +40,11 @@ class SyncService {
       }
 
       // Download new sheet transactions to local DB
-      const newSheetTransactions = sheetTransactions.filter(sheetT =>
-        !localTransactions.some(localT => localT.id === sheetT.id)
-      );
+      const newSheetTransactions = sheetTransactions.filter(sheetT => !localTransactionIds.has(sheetT.id));
 
       if (newSheetTransactions.length > 0) {
         console.log(`Found ${newSheetTransactions.length} new transactions in Google Sheets to download.`);
-        for (const transaction of newSheetTransactions) {
-          await localDB.addTransaction(transaction);
-        }
+        await Promise.all(newSheetTransactions.map(transaction => localDB.addTransaction(transaction)));
         console.log('Successfully downloaded new transactions from Google Sheets.');
       }
       
@@ -61,23 +60,24 @@ class SyncService {
     try {
       console.log('Starting duplicate transaction check...');
 
-      const localTransactions = await localDB.getTransactions();
-      const sheetTransactions = await googleSheets.getAllTransactions();
+      const [localTransactions, sheetTransactions] = await Promise.all([
+        localDB.getTransactions(),
+        googleSheets.getAllTransactions(),
+      ]);
 
       if (sheetTransactions.length === 0) {
         console.log('No transactions found in Google Sheets. Nothing to compare.');
         return;
       }
+      
+      const sheetTransactionsById = new Map(sheetTransactions.map(t => [t.id, t]));
 
-      const sheetTransactionIds = new Set(sheetTransactions.map(t => t.id));
+      const duplicateTransactions = localTransactions.filter(localT => {
+        const sheetT = sheetTransactionsById.get(localT.id);
+        return sheetT && this.isTransactionContentSame(localT, sheetT);
+      });
 
-      const duplicateTransactions = localTransactions.filter(localT => 
-        sheetTransactions.some(sheetT => 
-          sheetT.id === localT.id && this.isTransactionContentSame(localT, sheetT)
-        )
-      );
-
-      const transactionsToDelete = localTransactions.filter(localT => !sheetTransactionIds.has(localT.id));
+      const transactionsToDelete = localTransactions.filter(localT => !sheetTransactionsById.has(localT.id));
 
       if (duplicateTransactions.length > 0) {
         console.log(`Found ${duplicateTransactions.length} duplicate transactions. No action needed for these as they are in sync.`);
@@ -85,10 +85,8 @@ class SyncService {
 
       if (transactionsToDelete.length > 0) {
         console.log(`Found ${transactionsToDelete.length} transactions in local DB that are not in Google Sheets. Deleting them...`);
-        for (const transaction of transactionsToDelete) {
-          await localDB.deleteTransaction(transaction.id);
-          console.log(`Deleted transaction with ID: ${transaction.id} from local DB.`);
-        }
+        await Promise.all(transactionsToDelete.map(transaction => localDB.deleteTransaction(transaction.id)));
+        console.log(`Deleted ${transactionsToDelete.length} transactions from local DB.`);
       } else {
         console.log('No transactions to delete from local DB.');
       }
