@@ -4,6 +4,7 @@ import { COMPANY_NAMES as defaultCompanyNames, LOCATIONS, DENOMINATIONS } from '
 import { googleSheets } from '../services/googleSheets';
 import { useAuth, User } from './AuthContext';
 import { localDB } from '../services/LocalDBService';
+import { sendTelegramMessage } from '../services/telegramService';
 
 interface AppContextType {
   user: User | null;
@@ -191,7 +192,7 @@ useEffect(() => {
                 console.warn('❌ Google Sheets connection failed. Loading from local DB.');
                 setGoogleSheetsConnected(false);
                 const localTransactions = await localDB.getTransactions();
-                const sortedTransactions = localTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                const sortedTransactions = localTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                 setAllTransactions(sortedTransactions);
                 setSyncStatus('idle');
             }
@@ -310,7 +311,7 @@ useEffect(() => {
     }
   }, [isSubmitting, allTransactions, googleSheetsConnected]);
 
-  const updateTransaction = useCallback(async (updatedTransaction: Transaction & { manualDate?: string }) => {
+ const updateTransaction = useCallback(async (updatedTransaction: Transaction & { manualDate?: string }) => {
     // UI Update First
     if (updatedTransaction.manualDate) {
       updatedTransaction.date = new Date(updatedTransaction.manualDate).toISOString();
@@ -349,12 +350,25 @@ useEffect(() => {
           setSyncStatus('success');
           console.log(`✅ Transaction ${updatedTransaction.id} updated in Google Sheets.`);
         }
+         const editorName = currentUser?.displayName || currentUser?.email || 'Unknown User';
+        const message = `
+*Transaction Updated*
+---------------------
+**Updated by:** ${editorName}
+**Transaction ID:** ${updatedTransaction.id}
+**Company:** ${updatedTransaction.company}
+**Person:** ${updatedTransaction.person || 'N/A'}
+**Amount:** ₹${updatedTransaction.amount.toLocaleString('en-IN')}
+**Type:** ${updatedTransaction.type}
+**Date:** ${new Date(updatedTransaction.date).toLocaleString('en-IN')}
+        `;
+        sendTelegramMessage(message);
       } catch (error) {
         setSyncStatus('error');
         console.error(`❌ Failed to update or sync transaction ${updatedTransaction.id}:`, error);
       }
     })();
-  }, [allTransactions, googleSheetsConnected]);
+  }, [allTransactions, googleSheetsConnected, currentUser]);
 
   const deleteTransactionsByIds = useCallback(async (ids: string[]) => {
     const transactionsToDelete = allTransactions.filter(tx => ids.includes(tx.id));
@@ -376,26 +390,45 @@ useEffect(() => {
         return updatedVault;
     });
 
-    try {
-      for (const id of ids) {
-        await localDB.deleteTransaction(id);
-      }
-      console.log(`✅ Transactions ${ids.join(', ')} deleted locally.`);
+    (async () => {
+        try {
+            for (const id of ids) {
+                await localDB.deleteTransaction(id);
+            }
+            console.log(`✅ Transactions ${ids.join(', ')} deleted locally.`);
 
-      if (googleSheetsConnected) {
-        setSyncStatus('syncing');
-        for (const id of ids) {
-          await googleSheets.deleteTransaction(id);
+            if (googleSheetsConnected) {
+                setSyncStatus('syncing');
+                for (const id of ids) {
+                    await googleSheets.deleteTransaction(id);
+                }
+                setSyncStatus('success');
+                console.log(`✅ Transactions ${ids.join(', ')} deleted from Google Sheets.`);
+            }
+
+            const deleterName = currentUser?.displayName || currentUser?.email || 'Unknown User';
+            for (const tx of transactionsToDelete) {
+                const message = `
+*Transaction Deleted*
+----------------------
+**Deleted by:** ${deleterName}
+**Transaction ID:** ${tx.id}
+**Company:** ${tx.company}
+**Person:** ${tx.person || 'N/A'}
+**Amount:** ₹${tx.amount.toLocaleString('en-IN')}
+**Type:** ${tx.type}
+**Date:** ${new Date(tx.date).toLocaleString('en-IN')}
+                `;
+                sendTelegramMessage(message);
+            }
+        } catch (error) {
+            setSyncStatus('error');
+            console.error(`❌ Failed to delete or sync transactions ${ids.join(', ')}:`, error);
+            throw error; // Re-throwing the error to be caught by the caller if needed
         }
-        setSyncStatus('success');
-        console.log(`✅ Transactions ${ids.join(', ')} deleted from Google Sheets.`);
-      }
-    } catch (error) {
-      setSyncStatus('error');
-      console.error(`❌ Failed to delete or sync transactions ${ids.join(', ')}:`, error);
-      throw error;
-    }
-  }, [allTransactions, googleSheetsConnected]);
+    })();
+}, [allTransactions, googleSheetsConnected, currentUser]);
+
 
   const addCompany = useCallback(async (companyName: string) => {
     setCompanyNames(prev => [...prev, companyName].sort());
@@ -439,3 +472,4 @@ useEffect(() => {
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
+ 
