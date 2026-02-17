@@ -1,11 +1,8 @@
-
 import React, { useMemo, useEffect, useState } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Transaction } from '../types';
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 const ReportPage: React.FC = () => {
     const { companyName } = useParams<{ companyName: string }>();
@@ -23,22 +20,22 @@ const ReportPage: React.FC = () => {
 
     const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
 
-    const handleDownload = () => {
-        const input = document.getElementById('report-content');
-        if (input) {
-            const today = new Date();
-            const dateString = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
-            html2canvas(input)
-                .then((canvas) => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF();
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                    pdf.save(`${decodedCompanyName}_Report_${dateString}.pdf`);
-                });
-        }
-    };
+    useEffect(() => {
+        const originalTitle = document.title;
+        const today = new Date();
+        const dateString = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
+        document.title = `${decodedCompanyName}_Report_${dateString}`;
+        
+        const timer = setTimeout(() => {
+            window.print();
+            document.title = originalTitle;
+        }, 500);
+        
+        return () => {
+            clearTimeout(timer);
+            document.title = originalTitle;
+        };
+    }, [decodedCompanyName]);
     
     const companyTransactions = useMemo(() => {
         let filtered = transactions.filter(tx => (tx.company || 'NA') === decodedCompanyName);
@@ -121,18 +118,30 @@ const ReportPage: React.FC = () => {
         day: '2-digit', month: 'numeric', year: 'numeric',
         hour: '2-digit', minute: '2-digit', hour12: true,
     });
-    
-    const getStatementPeriod = () => {
-        if (showAllDates) {
-            return `${filterDay}/${filterMonth}/${filterYear}`;
+
+    const getFilterDescription = () => {
+        const parts = [];
+        if (!showAllDates) {
+            parts.push(`Date: ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}`);
+        } else {
+            if (filterYear !== 'all') parts.push(`Year: ${filterYear}`);
+            if (filterMonth !== 'all') {
+                const monthName = new Date(2000, parseInt(filterMonth) - 1).toLocaleString('default', { month: 'long' });
+                parts.push(`Month: ${monthName}`);
+            }
+            if (filterDay !== 'all') parts.push(`Day: ${filterDay}`);
         }
-        return new Date().toLocaleDateString('en-IN');
+        if (locationFilter && locationFilter !== 'all') parts.push(`Location: ${locationFilter}`);
+        if (filterType !== 'all') parts.push(`Type: ${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`);
+        if (searchTerm.trim()) parts.push(`Search: "${searchTerm.trim()}"`);
+        return parts.length > 0 ? parts.join(' | ') : 'All transactions';
     };
 
     if (!reportData) {
         return (
             <div className="text-center p-8">
                 <p>No transactions found for {decodedCompanyName} matching the applied filters.</p>
+                <p className="text-sm text-gray-600 mt-2">Filters applied: {getFilterDescription()}</p>
                 <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="text-blue-600 hover:underline mt-4 inline-block no-print">Go Back</Link>
             </div>
         );
@@ -144,104 +153,88 @@ const ReportPage: React.FC = () => {
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     });
-
-    const totalColumns = 1 + reportData.maxCashCount + reportData.maxUpiCount + 1;
+    
+    const numCashColumns = Math.max(reportData.maxCashCount, reportData.maxDebitCount);
+    const numUpiColumns = reportData.maxUpiCount;
+    const totalFooterCols = 1 + numCashColumns + numUpiColumns;
 
     return (
         <div className="bg-white p-2 sm:p-4 md:p-6 lg:p-8 print-container min-w-0">
-             <div className="no-print mb-4 flex justify-between">
+             <div className="no-print mb-4">
                 <Link to={`/company/${encodeURIComponent(decodedCompanyName)}?${searchParams.toString()}`} className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
                     <ArrowLeftIcon className="h-5 w-5"/><span>Back to History</span>
                 </Link>
-                <button onClick={handleDownload} className="bg-blue-600 text-white px-4 py-2 rounded-md">Download PDF</button>
              </div>
-            
-            <div id="report-content">
-                <header className="flex justify-between items-start mb-8">
-                    <div>
-                        <h1 className="text-4xl font-bold text-black">ALI ENTERPRISES</h1>
-                        <p className="text-lg text-gray-600 tracking-wider">FINANCIAL TRANSACTION STATEMENT</p>
-                    </div>
-                    <div className="text-right">
-                        <span className="bg-black text-white text-sm font-bold px-3 py-1">CONFIDENTIAL REPORT</span>
-                        <h2 className="text-2xl font-semibold mt-2">{decodedCompanyName}</h2>
-                        <p className="text-xs text-gray-500 mt-1">GENERATED: {formattedDate(generationDate)}</p>
-                        <p className="text-xs text-gray-500">LOCATION: {locationFilter || 'N/A'}</p>
-                    </div>
-                </header>
-                
-                <div className="mb-8">
-                    <p className="text-sm"><span className="font-bold">STATEMENT PERIOD:</span> {getStatementPeriod()}</p>
-                </div>
+             <div className="text-center mb-2 sm:mb-4">
+                 <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-black uppercase">Report for {decodedCompanyName}</h1>
+                 <p className="text-xs sm:text-sm text-gray-600">Generated on: {formattedDate(generationDate)}</p>
+                 <p className="text-xs sm:text-sm text-blue-600 font-medium">Filters: {getFilterDescription()}</p>
+             </div>
 
-                <hr className="border-black mb-8" />
-                
-                <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse border border-black text-xs sm:text-sm">
-                        <thead className="font-bold bg-gray-100">
-                            <tr>
-                                <th rowSpan={2} className="border border-black p-1 sm:p-2">Customer Name</th>
-                                {reportData.maxCashCount > 0 && <th colSpan={reportData.maxCashCount} className="border border-black p-1 sm:p-2">Cash</th>}
-                                {reportData.maxUpiCount > 0 && <th colSpan={reportData.maxUpiCount} className="border border-black p-1 sm:p-2">UPI</th>}
-                                <th rowSpan={2} className="border border-black p-1 sm:p-2">Total Credit</th>
-                            </tr>
-                            <tr>
-                                {Array.from({ length: reportData.maxCashCount }, (_, i) => (
-                                    <th key={`cash-header-${i}`} className="border border-black p-1 sm:p-2">{i + 1}</th>
-                                ))}
-                                {Array.from({ length: reportData.maxUpiCount }, (_, i) => (
-                                    <th key={`upi-header-${i}`} className="border border-black p-1 sm:p-2">{i + 1}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {reportData.customers.map(customer => (
-                                <tr key={customer.name}>
-                                    <td className="border border-black p-1 sm:p-2 font-semibold">{customer.name}</td>
-                                    {Array.from({ length: reportData.maxCashCount }, (_, i) => (
-                                        <td key={`cash-cell-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold">
-                                            {customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}
-                                        </td>
-                                    ))}
-                                    {Array.from({ length: reportData.maxUpiCount }, (_, i) => (
-                                        <td key={`upi-cell-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold">
-                                            {customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}
-                                        </td>
-                                    ))}
-                                    <td className="border border-black p-1 sm:p-2 text-right font-bold">{currencyFormatter.format(customer.total)}</td>
-                                </tr>
+            <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse border border-black text-xs sm:text-sm">
+                    <thead className="font-bold bg-gray-100">
+                        <tr>
+                            <th rowSpan={2} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Customer Name</th>
+                            {numCashColumns > 0 && <th colSpan={numCashColumns} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Cash</th>}
+                            {numUpiColumns > 0 && <th colSpan={numUpiColumns} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">UPI</th>}
+                            <th rowSpan={2} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Total Credit</th>
+                        </tr>
+                        <tr>
+                            {Array.from({ length: numCashColumns }, (_, i) => (
+                                <th key={`cash-header-${i}`} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">{i + 1}</th>
                             ))}
-                        </tbody>
-                        <tfoot className="font-bold">
-                            <tr>
-                                <td colSpan={1 + reportData.maxCashCount + reportData.maxUpiCount} className="border-t-2 border-black p-1 sm:p-2 text-right">Total Credit</td>
-                                <td className="border-t-2 border-black border-l border-black p-1 sm:p-2 text-right bg-green-100">{currencyFormatter.format(reportData.totalCredit)}</td>
+                            {Array.from({ length: numUpiColumns }, (_, i) => (
+                                <th key={`upi-header-${i}`} className="border border-black p-1 sm:p-2 text-xs sm:text-sm">{i + 1}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {reportData.customers.map(customer => (
+                            <tr key={customer.name}>
+                                <td className="border border-black p-1 sm:p-2 font-semibold text-xs sm:text-sm">{customer.name}</td>
+                                {Array.from({ length: numCashColumns }, (_, i) => <td key={`cash-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.cash[i] ? currencyFormatter.format(customer.cash[i]) : ''}</td>)}
+                                {Array.from({ length: numUpiColumns }, (_, i) => <td key={`upi-${i}`} className="border border-black p-1 sm:p-2 text-center font-bold text-xs sm:text-sm">{customer.upi[i] ? currencyFormatter.format(customer.upi[i]) : ''}</td>)}
+                                <td className="border border-black p-1 sm:p-2 text-right font-bold text-xs sm:text-sm">{currencyFormatter.format(customer.total)}</td>
                             </tr>
-                            <tr>
-                                <td className="border border-black p-1 sm:p-2">Entry</td>
-                                 {Array.from({ length: Math.max(reportData.maxCashCount, reportData.maxDebitCount) }, (_, i) => (
-                                    <td key={`debit-cash-${i}`} className="border border-black p-1 sm:p-2 text-right">
-                                        {reportData.debitAmounts[i] ? currencyFormatter.format(reportData.debitAmounts[i]) : ''}
-                                    </td>
-                                ))}
-                                 {reportData.maxCashCount < reportData.maxDebitCount && <td colSpan={reportData.maxDebitCount - reportData.maxCashCount}></td>}
-                                <td colSpan={reportData.maxUpiCount} className="border-y border-r border-black p-1 sm:p-2"></td>
-                                <td className="border border-black p-1 sm:p-2 text-right bg-red-100">{currencyFormatter.format(reportData.totalDebit)}</td>
-                            </tr>
-                            <tr>
-                                <td colSpan={totalColumns -1} className="p-1 sm:p-2 text-right">Closing Balance</td>
-                                <td className={`border border-black p-1 sm:p-2 text-right ${
-                                    reportData.closingBalance >= 0 
-                                        ? 'bg-green-100 text-green-800' 
-                                        : 'bg-red-100 text-red-600 font-bold'
-                                }`}>
-                                    {currencyFormatter.format(reportData.closingBalance)}
+                        ))}
+                    </tbody>
+                    <tfoot className="font-bold">
+                        
+                        <tr>
+                            <td colSpan={totalFooterCols} className="border-t-2 border-black p-1 sm:p-2 text-right text-xs sm:text-sm">Total Credit</td>
+                            <td className="border-t-2 border-black border-l border-black p-1 sm:p-2 text-right bg-green-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalCredit)}</td>
+                        </tr>
+
+                       
+                        <tr>
+                            <td className="border border-black p-1 sm:p-2 text-xs sm:text-sm">Entry</td>
+                            {Array.from({ length: numCashColumns }, (_, i) => (
+                                <td key={`debit-cash-${i}`} className="border border-black p-1 sm:p-2 text-right text-xs sm:text-sm">
+                                    {reportData.debitAmounts[i] ? currencyFormatter.format(reportData.debitAmounts[i]) : ''}
                                 </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
+                            ))}
+                            
+                            {numUpiColumns > 0 && <td colSpan={numUpiColumns} className="border-y border-r border-black p-1 sm:p-2"></td>}
+                            <td className="border border-black p-1 sm:p-2 text-right bg-red-100 text-xs sm:text-sm">{currencyFormatter.format(reportData.totalDebit)}</td>
+                        </tr>
+
+                       
+                        <tr>
+                            <td colSpan={totalFooterCols} className="p-1 sm:p-2 text-right text-xs sm:text-sm">Closing Balance</td>
+                            <td className={`border border-black p-1 sm:p-2 text-right text-xs sm:text-sm ${
+                                reportData.closingBalance >= 0 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-600 font-bold'
+                            }`}>
+                                {reportData.closingBalance < 0 ? '-' : ''}₹{Math.abs(reportData.closingBalance).toLocaleString('en-IN')}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
+
+            
         </div>
     );
 };
