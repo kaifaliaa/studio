@@ -1,8 +1,11 @@
 
 @media print {
-  @page {
-    size: auto;
+  @page { 
+    size: 80cap;
     margin: 0;
+    padding-left: 010%;
+    padding-right: 10%;
+    padding-top: 10%;
   }
   body {
     margin: 0;
