@@ -30,6 +30,11 @@ const UserProfilePage: React.FC = () => {
     earning: 0,
   });
 
+  const handleLogout = () => {
+    localStorage.removeItem('ali_enterprises_user');
+    navigate('/login');
+  };
+
   useEffect(() => {
     if (transactions.length > 0) {
       const validTransactions = transactions.filter(tx => tx.company !== 'NA');
@@ -241,17 +246,29 @@ const UserProfilePage: React.FC = () => {
         </div>
       </div>
 
+      {/* Logout Button (for mobile view) */}
+      <div className="mt-6 md:hidden">
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 bg-red-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-shadow p-4 font-semibold"
+        >
+          Logout
+        </button>
+      </div>
+
       {/* Data Privacy Notice */}
       <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
         <div className="flex items-center gap-3">
           <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-full">
-            <UserIcon className="h-5 w-5 text-blue-600" />
-          </div>
-          <div>
-            <h5 className="font-semibold text-blue-900 dark:text-blue-200">Data Access</h5>
-            <p className="text-sm text-blue-800 dark:text-blue-300">
-              You can see all transactions from all users in the system. New transactions you create will be recorded under your account.
-            </p>
+            <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-full">
+              <UserIcon className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h5 className="font-semibold text-blue-900 dark:text-blue-200">Data Access</h5>
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                You can see all transactions from all users in the system. New transactions you create will be recorded under your account.
+              </p>
+            </div>
           </div>
         </div>
       </div>
