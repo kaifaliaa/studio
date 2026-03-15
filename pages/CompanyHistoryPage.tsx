@@ -5,18 +5,16 @@ import { Transaction } from '../types';
 
 // Icons
 import { ArrowLeftIcon } from '../components/icons/ArrowLeftIcon';
-import { TrendingUpIcon } from '../components/icons/TrendingUpIcon';
-import { TrendingDownIcon } from '../components/icons/TrendingDownIcon';
 import { StarIcon } from '../components/icons/StarIcon';
 import { CheckCircleIcon } from '../components/icons/CheckCircleIcon';
 import { MinusCircleIcon } from '../components/icons/MinusCircleIcon';
 import { TrashIcon } from '../components/icons/TrashIcon';
 import { PencilIcon } from '../components/icons/PencilIcon';
 import { PrinterIcon } from '../components/icons/PrinterIcon';
-import { WalletIcon } from '../components/icons/WalletIcon';
-import { RupeeIcon } from '../components/icons/RupeeIcon';
 import { CalendarDaysIcon } from '../components/icons/CalendarDaysIcon';
 import { FilterIcon } from '../components/icons/FilterIcon';
+
+const TRANSACTIONS_PER_PAGE = 25;
 
 const formatPersonName = (name: string | undefined) => {
     if (!name) return 'Unknown Customer';
@@ -89,6 +87,9 @@ const CompanyHistoryPage: React.FC = () => {
   const [filterDay, setFilterDay] = useState(searchParams.get('day') || 'all');
   const [filterType, setFilterType] = useState(searchParams.get('type') || 'all');
   const [showAllDates, setShowAllDates] = useState(searchParams.get('showAllDates') === 'true');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  const [visibleCount, setVisibleCount] = useState(TRANSACTIONS_PER_PAGE);
 
   const decodedCompanyName = companyName ? decodeURIComponent(companyName) : '';
 
@@ -177,6 +178,15 @@ const CompanyHistoryPage: React.FC = () => {
         return true;
     });
   }, [companyTransactions, searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates]);
+
+  const paginatedTransactions = useMemo(() => {
+    return filteredTransactions.slice(0, visibleCount);
+  }, [filteredTransactions, visibleCount]);
+
+  useEffect(() => {
+    setVisibleCount(TRANSACTIONS_PER_PAGE);
+  }, [searchTerm, filterYear, filterMonth, filterDay, filterType, showAllDates, companyTransactions]);
+
 
   const filteredSummary = useMemo(() => {
     return filteredTransactions.reduce((acc, tx) => {
@@ -361,6 +371,13 @@ const CompanyHistoryPage: React.FC = () => {
               <button onClick={handleNewDebit} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-red-600 text-white hover:bg-red-700">
                   Debit
               </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors ${
+                    showFilters ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}>
+                <FilterIcon className="h-5 w-5" />
+              </button>
               <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm font-medium transition-colors bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600">
                   <PrinterIcon className="h-5 w-5" />
               </button>
@@ -400,52 +417,66 @@ const CompanyHistoryPage: React.FC = () => {
       </div>
 
       {/* Filter Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-6 sticky top-[65px] z-5 no-print">
-        <input type="text" placeholder="Search by person, amount, or payment method..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
-        
-        <div className="mb-4 flex items-center gap-4">
-          <button
-            onClick={() => setShowAllDates(!showAllDates)}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              showAllDates 
-                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                : 'bg-blue-600 text-white hover:bg-blue-700' 
-            }`}
-          >
-            {showAllDates ? 'Show Today Only' : 'Show All Dates'}
-          </button>
-          {!showAllDates && (
-            <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-              Showing: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
-            </span>
+      {showFilters && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 mb-6 sticky top-[65px] z-5 no-print">
+          <input type="text" placeholder="Search by person, amount, or payment method..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-4 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md mb-4 bg-gray-50 dark:bg-gray-700" />
+          
+          <div className="mb-4 flex items-center gap-4">
+            <button
+              onClick={() => setShowAllDates(!showAllDates)}
+              className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                showAllDates 
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  : 'bg-blue-600 text-white hover:bg-blue-700' 
+              }`}
+            >
+              {showAllDates ? 'Show Today Only' : 'Show All Dates'}
+            </button>
+            {!showAllDates && (
+              <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                Showing: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+              </span>
+            )}
+          </div>
+          
+          {showAllDates && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterYear} onChange={e => {setFilterYear(e.target.value); setFilterMonth('all'); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Years</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select></div>
+                <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{new Date(2000, parseInt(m) - 1).toLocaleString('default', { month: 'long' })}</option>)}</select></div>
+                <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterDay} onChange={e => setFilterDay(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Days</option>{days.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+                <div className='relative'><FilterIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
+            </div>
           )}
-        </div>
-        
-        {showAllDates && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterYear} onChange={e => {setFilterYear(e.target.value); setFilterMonth('all'); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Years</option>{years.map(y=><option key={y} value={y}>{y}</option>)}</select></div>
-              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterMonth} onChange={e => {setFilterMonth(e.target.value); setFilterDay('all');}} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Months</option>{months.map(m=><option key={m} value={m}>{new Date(2000, parseInt(m) - 1).toLocaleString('default', { month: 'long' })}</option>)}</select></div>
-              <div className='relative'><CalendarDaysIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterDay} onChange={e => setFilterDay(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Days</option>{days.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
-              <div className='relative'><FilterIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
+          
+          {!showAllDates && (
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4">
+                <div className='relative'><FilterIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
+            </div>
+          )}
+          
+          <div className="mt-4 flex items-center">
+              <input type="checkbox" id="selectAll" onChange={handleSelectAll} checked={filteredTransactions.length > 0 && selectedIds.length === filteredTransactions.length} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+              <label htmlFor="selectAll" className="ml-2 text-sm text-gray-600 dark:text-gray-300">Select/Deselect All ({selectedIds.length} of {filteredTransactions.length} selected)</label>
           </div>
-        )}
-        
-        {!showAllDates && (
-          <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-4">
-              <div className='relative'><FilterIcon className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400'/><select value={filterType} onChange={e => setFilterType(e.target.value)} className="w-full p-2 pl-10 border dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 appearance-none"><option value="all">All Types</option><option value="credit">Credit</option><option value="debit">Debit</option></select></div>
-          </div>
-        )}
-        
-        <div className="mt-4 flex items-center">
-            <input type="checkbox" id="selectAll" onChange={handleSelectAll} checked={filteredTransactions.length > 0 && selectedIds.length === filteredTransactions.length} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-            <label htmlFor="selectAll" className="ml-2 text-sm text-gray-600 dark:text-gray-300">Select/Deselect All ({selectedIds.length} of {filteredTransactions.length} selected)</label>
         </div>
-      </div>
+      )}
 
       {filteredTransactions.length > 0 ? (
-        <div className="space-y-4">
-          {filteredTransactions.map(tx => <TransactionItem key={tx.id} transaction={tx} isSelected={selectedIds.includes(tx.id)} onSelect={handleSelect} from={location.pathname + location.search} />)}
-        </div>
+        <>
+          <div className="space-y-4">
+            {paginatedTransactions.map(tx => <TransactionItem key={tx.id} transaction={tx} isSelected={selectedIds.includes(tx.id)} onSelect={handleSelect} from={location.pathname + location.search} />)}
+          </div>
+          {filteredTransactions.length > visibleCount && (
+            <div className="mt-6 text-center">
+                <button 
+                    onClick={() => setVisibleCount(prev => prev + TRANSACTIONS_PER_PAGE)}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                    Load More
+                </button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-xl mt-4">
           <p className="text-gray-500 dark:text-gray-400">No transactions found for this company matching your criteria.</p>
